@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import * as React from "react"
 import {
@@ -41,7 +41,13 @@ const data = {
             icon: Store,
             // no subitems -> simple link, no accordion
         },
-    ],
+    
+        {
+            title: "Configuración base",
+            url: "/configuracion/base",
+            icon: Settings2,
+        },
+],
 }
 
 export function AppSidebar({ businesses, initialActiveId, user, ...props }: React.ComponentProps<typeof Sidebar> & { businesses: any[]; initialActiveId?: string | null; user: { name: string; email: string; avatar: string } }) {
@@ -60,3 +66,5 @@ export function AppSidebar({ businesses, initialActiveId, user, ...props }: Reac
         </Sidebar>
     )
 }
+
+

@@ -1,33 +1,27 @@
 generator client {
   provider = "prisma-client-js"
 }
-
 datasource db {
   provider = "postgresql"
 }
-
 enum BusinessType {
   MARCA_PERSONAL
   EMPRESA
   ECOMMERCE
   AGENCIA
 }
-
 enum BusinessStatus {
   ACTIVE
   DELETED
 }
-
 enum MemberRole {
   ADMIN
   VIEWER
 }
-
 enum UserRole {
   SUPER_ADMIN
   CLIENT
 }
-
 model User {
   id            String   @id @default(uuid())
   email         String   @unique
@@ -38,14 +32,11 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
-  // Relations
   businessesCreated Business[] @relation("BusinessCreator")
   memberships       BusinessMember[]
   accounts          Account[]
   sessions          Session[]
 }
-
 model Business {
   id               String         @id @default(uuid())
   name             String
@@ -57,29 +48,20 @@ model Business {
   valueProposition String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-
-  // Creator relation (who created the business)
   createdById      String?
   createdBy        User?          @relation("BusinessCreator", fields: [createdById], references: [id])
-
-  // Members
   members          BusinessMember[]
 }
-
 model BusinessMember {
   id         String     @id @default(uuid())
   userId     String
   businessId String
   role       MemberRole @default(VIEWER)
   createdAt  DateTime   @default(now())
-
   user     User     @relation(fields: [userId], references: [id])
   business Business @relation(fields: [businessId], references: [id])
-
   @@unique([userId, businessId])
 }
-
-// NextAuth models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -93,12 +75,10 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
-
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -106,11 +86,9 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-
   @@unique([identifier, token])
 }

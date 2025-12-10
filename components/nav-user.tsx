@@ -4,12 +4,12 @@ import {
     BadgeCheck,
     Bell,
     ChevronsUpDown,
-    CreditCard,
     LogOut,
-    Sparkles,
+    Moon,
+    Sun,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import {
     Avatar,
@@ -45,6 +45,41 @@ export function NavUser({
 }) {
     const { isMobile } = useSidebar()
     const [confirmOpen, setConfirmOpen] = useState(false)
+    const [isDark, setIsDark] = useState(false)
+
+    useEffect(() => {
+        try {
+            const saved = typeof window !== 'undefined' ? localStorage.getItem('theme') : null
+            if (saved === 'dark') {
+                document.documentElement.classList.add('dark')
+                setIsDark(true)
+            } else if (saved === 'light') {
+                document.documentElement.classList.remove('dark')
+                setIsDark(false)
+            } else {
+                // fallback to prefers-color-scheme
+                const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                if (prefersDark) {
+                    document.documentElement.classList.add('dark')
+                    setIsDark(true)
+                }
+            }
+        } catch {}
+    }, [])
+
+    const toggleTheme = () => {
+        const next = !isDark
+        setIsDark(next)
+        try {
+            if (next) {
+                document.documentElement.classList.add('dark')
+                localStorage.setItem('theme', 'dark')
+            } else {
+                document.documentElement.classList.remove('dark')
+                localStorage.setItem('theme', 'light')
+            }
+        } catch {}
+    }
 
     return (
         <>
@@ -88,23 +123,19 @@ export function NavUser({
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
                             <DropdownMenuItem>
-                                <Sparkles />
-                                Mejorar a Pro
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem>
                                 <BadgeCheck />
                                 Cuenta
                             </DropdownMenuItem>
                             <DropdownMenuItem>
-                                <CreditCard />
-                                Facturación
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
                                 <Bell />
                                 Notificaciones
+                            </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme() }}>
+                                {isDark ? <Sun /> : <Moon />}
+                                {isDark ? 'Modo claro' : 'Modo oscuro'}
                             </DropdownMenuItem>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
@@ -122,7 +153,7 @@ export function NavUser({
                     <DialogTitle>¿Cerrar sesión?</DialogTitle>
                 </DialogHeader>
                 <p className="text-sm text-muted-foreground">
-                    Se cerrará tu sesión en esta aplicación. Podrás volver a iniciar cuando quieras.
+                    Se cerrará tu sesión en Market-Ops. Podrás volver a iniciar cuando quieras.
                 </p>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
