@@ -116,16 +116,16 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
       {step === 1 && (
         <div className="space-y-2 pt-1">
           <p className="text-sm text-muted-foreground">Paso 2 de 3</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Marca y descripción</h2>
-          <p className="text-base text-muted-foreground">Añade una imagen (opcional) y describe brevemente tu negocio.</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Imagen y descripción</h2>
+          <p className="text-base text-muted-foreground">Añade un logo o imagen (opcional) y una descripción breve del negocio.</p>
         </div>
       )}
 
       {step === 2 && (
         <div className="space-y-2 pt-1">
           <p className="text-sm text-muted-foreground">Paso 3 de 3</p>
-          <h2 className="text-2xl font-semibold tracking-tight">Objetivos y propuesta de valor</h2>
-          <p className="text-base text-muted-foreground">Define metas y tu propuesta de valor. Siempre podrás cambiarlas.</p>
+          <h2 className="text-2xl font-semibold tracking-tight">Objetivos del negocio y propuesta de valor</h2>
+          <p className="text-base text-muted-foreground">Define objetivos comerciales generales y cómo se diferencia tu negocio.</p>
         </div>
       )}
 
@@ -149,7 +149,7 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nombre del Negocio</FormLabel>
+                    <FormLabel>Nombre del negocio</FormLabel>
                     <FormControl>
                       <Input placeholder="Ej. Acme Corp" {...field} autoFocus />
                     </FormControl>
@@ -190,7 +190,7 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
                 name="imageUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL del Logo/Imagen</FormLabel>
+                    <FormLabel>URL del logo o imagen (opcional)</FormLabel>
                     <FormControl>
                       <Input placeholder="https://ejemplo.com/logo.png" {...field} />
                     </FormControl>
@@ -203,7 +203,7 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descripción del Servicio/Producto</FormLabel>
+                    <FormLabel>Descripción breve del negocio</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Resumen de tu negocio" className="resize-none" {...field} />
                     </FormControl>
@@ -221,7 +221,7 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
                 name="goals"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Objetivos Comerciales</FormLabel>
+                    <FormLabel>Objetivos comerciales del negocio</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Ej: Aumentar MRR 20% en Q1; Adquirir 50 clientes B2B." className="resize-none" {...field} />
                     </FormControl>
@@ -234,7 +234,7 @@ export function OnboardingBusinessForm({ welcomeName }: { welcomeName?: string }
                 name="valueProposition"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Propuesta de Valor Única (PVU)</FormLabel>
+                    <FormLabel>Propuesta de valor única</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Ayudamos a [cliente] a [resolver problema] con [solución única]." className="resize-none" {...field} />
                     </FormControl>
