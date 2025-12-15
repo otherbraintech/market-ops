@@ -1,7 +1,6 @@
 "use client"
 
-import { ToastActionElement } from "@/components/ui/toast"
-import { ToastProps } from "@radix-ui/react-toast"
+import { ToastActionElement, ToastProps } from "@/components/ui/toast"
 // Inspired by react-hot-toast library
 import * as React from "react"
 

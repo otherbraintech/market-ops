@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus, Store } from "lucide-react"
+import { ChevronsUpDown, Loader2, Plus, Store } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 import {
     DropdownMenu,
@@ -19,6 +20,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar"
+import { useBusiness } from "@/contexts/business-context"
 
 const businessTypeLabels: Record<string, string> = {
     MARCA_PERSONAL: "Marca Personal",
@@ -44,7 +46,15 @@ export function TeamSwitcher({
     initialActiveId?: string | null
 }) {
     const { isMobile } = useSidebar()
+    const router = useRouter()
+    const { setIsBusinessSwitching } = useBusiness()
     const [activeBusiness, setActiveBusiness] = React.useState<Business | null>(null)
+    const [isPending, startTransition] = React.useTransition()
+
+    // Sync global loading state with local transition state
+    React.useEffect(() => {
+        setIsBusinessSwitching(isPending)
+    }, [isPending, setIsBusinessSwitching])
 
     // Initialize from localStorage or initialActiveId, fallback to first
     React.useEffect(() => {
@@ -52,7 +62,7 @@ export function TeamSwitcher({
         let id: string | null = null
         try {
             id = typeof window !== 'undefined' ? localStorage.getItem('activeBusinessId') : null
-        } catch {}
+        } catch { }
         if (!id && initialActiveId) id = initialActiveId
         const found = id ? businesses.find(b => b.id === id) : null
         setActiveBusiness(found || businesses[0])
@@ -67,7 +77,10 @@ export function TeamSwitcher({
             if (typeof window !== 'undefined') {
                 localStorage.setItem('activeBusinessId', business.id)
             }
-        } catch {}
+            startTransition(() => {
+                router.refresh()
+            })
+        } catch { }
     }
 
     return (
@@ -78,6 +91,7 @@ export function TeamSwitcher({
                         <SidebarMenuButton
                             size="lg"
                             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                            disabled={isPending}
                         >
                             {activeBusiness?.imageUrl ? (
                                 <Image
@@ -101,7 +115,11 @@ export function TeamSwitcher({
                                     {activeBusiness ? businessTypeLabels[activeBusiness.type] || activeBusiness.type : "Sin negocio"}
                                 </span>
                             </div>
-                            <ChevronsUpDown className="ml-auto" />
+                            {isPending ? (
+                                <Loader2 className="ml-auto size-4 animate-spin text-muted-foreground" />
+                            ) : (
+                                <ChevronsUpDown className="ml-auto" />
+                            )}
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
