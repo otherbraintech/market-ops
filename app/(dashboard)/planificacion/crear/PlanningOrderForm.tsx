@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { format } from "date-fns"
+import { format, differenceInCalendarMonths } from "date-fns"
 import { CalendarIcon, Loader2, Info } from "lucide-react"
 import { DateRange } from "react-day-picker"
 import { es } from "date-fns/locale"
@@ -29,6 +29,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 
 import { createPlanningOrder } from "@/app/actions/planning"
 import { planningOrderSchema, type PlanningOrderInput, PlanningObjective, ResourceLevel, ChannelType } from "@/lib/schemas/planning"
@@ -68,6 +70,7 @@ const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
 export function PlanningOrderForm({ products, availableChannels }: PlanningOrderFormProps) {
     const { toast } = useToast()
     const [isPending, startTransition] = React.useTransition()
+    const [showExceptions, setShowExceptions] = React.useState(false)
 
     // Default values
     const defaultChannelRules: Record<string, { frecuencia_adicional: number; tipo: ChannelType }> = {}
@@ -140,51 +143,178 @@ export function PlanningOrderForm({ products, availableChannels }: PlanningOrder
                             )}
                         />
 
-                        <FormField
-                            control={form.control}
-                            name="dateRange"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Rango de Fechas</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "w-full pl-3 text-left font-normal",
-                                                    !field.value && "text-muted-foreground"
-                                                )}
-                                            >
-                                                {field.value?.from ? (
-                                                    field.value.to ? (
-                                                        <>
-                                                            {format(field.value.from, "LLL dd, y", { locale: es })} -{" "}
-                                                            {format(field.value.to, "LLL dd, y", { locale: es })}
-                                                        </>
+                        {/* Replacement for old DatePicker */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <FormField
+                                control={form.control}
+                                name="dateRange.from"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Fecha Inicio</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full pl-3 text-left font-normal",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {field.value ? (
+                                                        format(field.value, "PPP", { locale: es })
                                                     ) : (
-                                                        format(field.value.from, "LLL dd, y", { locale: es })
-                                                    )
-                                                ) : (
-                                                    <span>Selecciona fecha inicio y fin</span>
+                                                        <span>Selecciona inicio</span>
+                                                    )}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    disabled={(date) =>
+                                                        date < new Date("1900-01-01")
+                                                    }
+                                                    locale={es}
+                                                    defaultMonth={field.value}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="dateRange.to"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Fecha Fin</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full pl-3 text-left font-normal",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    {field.value ? (
+                                                        format(field.value, "PPP", { locale: es })
+                                                    ) : (
+                                                        <span>Selecciona fin</span>
+                                                    )}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    disabled={(date) =>
+                                                        (form.getValues("dateRange.from") ? date < form.getValues("dateRange.from")! : false)
+                                                    }
+                                                    locale={es}
+                                                    defaultMonth={field.value}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                        {/* Excluded Dates Selection */}
+                        {form.watch("dateRange.from") && form.watch("dateRange.to") && (
+                            <div className="mt-4 border rounded-md p-4 bg-muted/20 space-y-4 md:col-span-2">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="enable-exceptions"
+                                        checked={showExceptions}
+                                        onCheckedChange={setShowExceptions}
+                                    />
+                                    <Label htmlFor="enable-exceptions" className="text-base font-semibold">
+                                        Personalizar excepciones (feriados, días sin post)
+                                    </Label>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    Si no activas esto, la IA decidirá los mejores días por ti.
+                                </p>
+
+                                {showExceptions && (
+                                    <FormField
+                                        control={form.control}
+                                        name="excludedDates"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormDescription>
+                                                    Selecciona los días específicos dentro del rango en los que <strong>NO</strong> deseas publicar contenido.
+                                                </FormDescription>
+                                                <div className="mt-2 bg-card rounded-md border p-4">
+                                                    <Calendar
+                                                        mode="multiple"
+                                                        selected={field.value}
+                                                        onSelect={field.onChange}
+                                                        fromDate={form.watch("dateRange.from")}
+                                                        toDate={form.watch("dateRange.to")}
+                                                        disabled={(date) =>
+                                                            date < form.watch("dateRange.from")! ||
+                                                            date > form.watch("dateRange.to")!
+                                                        }
+                                                        defaultMonth={form.watch("dateRange.from")}
+                                                        numberOfMonths={
+                                                            form.watch("dateRange.from") && form.watch("dateRange.to")
+                                                                ? Math.max(differenceInCalendarMonths(form.watch("dateRange.to")!, form.watch("dateRange.from")!) + 1, 1)
+                                                                : 1
+                                                        }
+                                                        locale={es}
+                                                        className="w-full"
+                                                        style={{ "--cell-size": "28px" } as React.CSSProperties}
+                                                        classNames={{
+                                                            months: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10",
+                                                            week: "grid grid-cols-7 gap-2 w-full mt-2",
+                                                            weekdays: "grid grid-cols-7 gap-2 w-full",
+                                                            weekday: "text-muted-foreground rounded-md font-normal text-[0.8rem] select-none w-full flex items-center justify-center",
+                                                            today: "font-bold text-foreground"
+                                                        }}
+                                                    />
+                                                </div>
+                                                {field.value && field.value.length > 0 && (
+                                                    <div className="mt-2">
+                                                        <p className="text-sm font-medium mb-1">Días excluidos seleccionados:</p>
+                                                        <div className="text-sm text-muted-foreground space-y-1">
+                                                            {(() => {
+                                                                const sorted = [...field.value].sort((a: Date, b: Date) => a.getTime() - b.getTime())
+                                                                const grouped: Record<string, string[]> = {}
+                                                                sorted.forEach((date) => {
+                                                                    const monthKey = format(date, "MMMM yyyy", { locale: es })
+                                                                    const capKey = monthKey.charAt(0).toUpperCase() + monthKey.slice(1)
+                                                                    if (!grouped[capKey]) grouped[capKey] = []
+                                                                    grouped[capKey].push(format(date, "d"))
+                                                                })
+                                                                return Object.entries(grouped).map(([month, days]) => (
+                                                                    <div key={month}>
+                                                                        <span className="font-semibold text-foreground/80">{month}:</span> {days.join(", ")}
+                                                                    </div>
+                                                                ))
+                                                            })()}
+                                                        </div>
+                                                    </div>
                                                 )}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                                initialFocus
-                                                mode="range"
-                                                defaultMonth={field.value?.from}
-                                                selected={field ? { from: field.value?.from, to: field.value?.to } : undefined}
-                                                onSelect={field.onChange}
-                                                numberOfMonths={2}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        )}
+                        {/* End Replacement */}
                     </div>
                 </div>
 

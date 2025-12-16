@@ -111,7 +111,6 @@ model Business {
   members          BusinessMember[]
   baseConfig       BusinessBaseConfig?
   planningOrders   PlanningOrder[]
-  products         Product[]
 }
 
 model BusinessMember {
@@ -236,7 +235,6 @@ model PlanningOrder {
   id              String         @id @default(uuid())
   businessId      String
   createdByUserId String
-  name            String? // Nombre interno de la orden
   status          PlanningStatus @default(ORDER_CREATED)
 
   // I. ENFOQUE TEMPORAL Y OBJETIVO (FECHAS Y QUÉ QUEREMOS)
@@ -270,16 +268,6 @@ model PlanningOrder {
 
   // Relación con las ideas generadas a partir de esta orden (Para el iterador de n8n)
   contentIdeas ContentIdea[]
-}
-
-model Product {
-  id          String   @id @default(uuid())
-  businessId  String
-  name        String
-  description String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  business    Business @relation(fields: [businessId], references: [id])
 }
 
 // Placeholder for ContentIdea to satisfy relation

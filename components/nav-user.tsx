@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { useEffect, useState } from "react"
+import Link from "next/link"
 
 import {
     Avatar,
@@ -64,7 +65,7 @@ export function NavUser({
                     setIsDark(true)
                 }
             }
-        } catch {}
+        } catch { }
     }, [])
 
     const toggleTheme = () => {
@@ -78,38 +79,19 @@ export function NavUser({
                 document.documentElement.classList.remove('dark')
                 localStorage.setItem('theme', 'light')
             }
-        } catch {}
+        } catch { }
     }
 
     return (
         <>
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton
-                            size="lg"
-                            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                        >
-                            <Avatar className="h-8 w-8 rounded-lg">
-                                <AvatarImage src={user.avatar} alt={user.name} />
-                                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-                            </Avatar>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-semibold">{user.name}</span>
-                                <span className="truncate text-xs">{user.email}</span>
-                            </div>
-                            <ChevronsUpDown className="ml-auto size-4" />
-                        </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                        side={isMobile ? "bottom" : "right"}
-                        align="end"
-                        sideOffset={4}
-                    >
-                        <DropdownMenuLabel className="p-0 font-normal">
-                            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <SidebarMenuButton
+                                size="lg"
+                                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                            >
                                 <Avatar className="h-8 w-8 rounded-lg">
                                     <AvatarImage src={user.avatar} alt={user.name} />
                                     <AvatarFallback className="rounded-lg">CN</AvatarFallback>
@@ -118,49 +100,70 @@ export function NavUser({
                                     <span className="truncate font-semibold">{user.name}</span>
                                     <span className="truncate text-xs">{user.email}</span>
                                 </div>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                                <BadgeCheck />
-                                Cuenta
+                                <ChevronsUpDown className="ml-auto size-4" />
+                            </SidebarMenuButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                            side={isMobile ? "bottom" : "right"}
+                            align="end"
+                            sideOffset={4}
+                        >
+                            <DropdownMenuLabel className="p-0 font-normal">
+                                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                                    <Avatar className="h-8 w-8 rounded-lg">
+                                        <AvatarImage src={user.avatar} alt={user.name} />
+                                        <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                                    </Avatar>
+                                    <div className="grid flex-1 text-left text-sm leading-tight">
+                                        <span className="truncate font-semibold">{user.name}</span>
+                                        <span className="truncate text-xs">{user.email}</span>
+                                    </div>
+                                </div>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/cuenta" className="flex items-center gap-2 w-full cursor-pointer">
+                                        <BadgeCheck className="h-4 w-4" />
+                                        Cuenta
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <Bell />
+                                    Notificaciones
+                                </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme() }}>
+                                    {isDark ? <Sun /> : <Moon />}
+                                    {isDark ? 'Modo claro' : 'Modo oscuro'}
+                                </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setConfirmOpen(true) }}>
+                                <LogOut />
+                                Cerrar sesión
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <Bell />
-                                Notificaciones
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggleTheme() }}>
-                                {isDark ? <Sun /> : <Moon />}
-                                {isDark ? 'Modo claro' : 'Modo oscuro'}
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setConfirmOpen(true) }}>
-                            <LogOut />
-                            Cerrar sesión
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </SidebarMenuItem>
-        </SidebarMenu>
-        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <DialogContent className="sm:max-w-[420px]">
-                <DialogHeader>
-                    <DialogTitle>¿Cerrar sesión?</DialogTitle>
-                </DialogHeader>
-                <p className="text-sm text-muted-foreground">
-                    Se cerrará tu sesión en Market-Ops. Podrás volver a iniciar cuando quieras.
-                </p>
-                <DialogFooter>
-                    <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
-                    <Button variant="destructive" onClick={() => signOut({ callbackUrl: "/login" })}>Cerrar sesión</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </SidebarMenuItem>
+            </SidebarMenu>
+            <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <DialogContent className="sm:max-w-[420px]">
+                    <DialogHeader>
+                        <DialogTitle>¿Cerrar sesión?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Se cerrará tu sesión en Market-Ops. Podrás volver a iniciar cuando quieras.
+                    </p>
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={() => signOut({ callbackUrl: "/login" })}>Cerrar sesión</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }

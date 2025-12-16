@@ -41,6 +41,7 @@ export const planningOrderSchema = z.object({
     from: z.date(),
     to: z.date(),
   }).optional(),
+  excludedDates: z.array(z.date()).default([]),
   objective: z.nativeEnum(PlanningObjective),
   priorityProductIds: z.array(z.string()).default([]),
   additionalFocus: z.string().optional(),

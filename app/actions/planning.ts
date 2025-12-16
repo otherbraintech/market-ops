@@ -65,6 +65,7 @@ export async function createPlanningOrder(data: PlanningOrderInput) {
               name: rest.name,
               startDate: dateRange.from,
               endDate: dateRange.to,
+              excludedDates: rest.excludedDates,
               objective: rest.objective,
               priorityProductIds: rest.priorityProductIds,
               additionalFocus: rest.additionalFocus,
