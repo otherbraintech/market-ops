@@ -111,6 +111,7 @@ model Business {
   members          BusinessMember[]
   baseConfig       BusinessBaseConfig?
   planningOrders   PlanningOrder[]
+  products         Product[]
 }
 
 model BusinessMember {
@@ -208,10 +209,10 @@ enum PlanningObjective {
   OTRO
 }
 
-enum ResourceLevel {
-  BAJO // Fotos rápidas, poco video
-  MEDIO // Reels/Videos simples, Carruseles
-  ALTO // Producción profesional, animaciones
+enum AssetSource {
+  CLIENT_PROVIDED // El usuario tiene fotos/videos
+  AI_GENERATED // Se usarán imágenes de stock o generadas por IA
+  MIXED // Combinación de ambos
 }
 
 enum PlanningStatus {
@@ -223,10 +224,11 @@ enum PlanningStatus {
   CANCELLED
 }
 
-enum ChannelType {
-  ORIGINAL_EXCLUSIVO
-  REPOSTEO_CRUZADO
-  MIXTO
+enum ChannelFormat {
+  VIDEO
+  STATIC // Imagen única
+  CAROUSEL
+  STORY
 }
 
 // --- MODELO PRINCIPAL DE LA ORDEN DE PLANIFICACIÓN ---
@@ -248,16 +250,19 @@ model PlanningOrder {
   // Eje temático o foco adicional ingresado por el usuario
   additionalFocus String? @db.Text
 
+  // Referencias o inspiración (URLs, cuentas, etc)
+  references String? @db.Text
+
   // II. DECLARACIONES DE CANALES Y FRECUENCIA
   frequencyBase Float @default(1.0) // Frecuencia mínima diaria general
 
   // Reglas de cada canal. Se usa JSON para almacenar la estructura de la matriz/tabla de canales.
-  // Ejemplo: { "instagram": { "frecuencia_adicional": 0.5, "tipo": "ORIGINAL_EXCLUSIVO" }, ... }
+  // Ejemplo: { 'instagram': { 'formats': ['VIDEO', 'STORY'] }, ... }
   channelRules Json
 
   // III. RECURSOS Y RESTRICCIONES OPERACIONALES
-  resourceLevel   ResourceLevel @default(MEDIO)
-  productionNotes String?       @db.Text // Restricciones de producción ingresadas
+  assetSource     AssetSource @default(MIXED)
+  productionNotes String?     @db.Text // Restricciones de producción ingresadas
 
   // LOGS Y RELACIONES
   createdAt DateTime @default(now())
@@ -277,4 +282,16 @@ model ContentIdea {
   planningOrder   PlanningOrder @relation(fields: [planningOrderId], references: [id])
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+}
+
+model Product {
+  id          String  @id @default(uuid())
+  businessId  String
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
 }

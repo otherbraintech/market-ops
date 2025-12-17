@@ -49,7 +49,7 @@ const data = {
         },
         {
             title: "Planificación",
-            url: "/planificacion/crear",
+            url: "/planificacion/ ",
             icon: Bot,
         },
     ],

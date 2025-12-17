@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
-import { PlanningOrderForm } from "./PlanningOrderForm"
+import { EnhancedPlanningOrderForm } from "./PlanningOrderForm"
 
 export default async function CrearPlanificacionPage() {
     const cookieStore = await cookies()
@@ -17,7 +17,7 @@ export default async function CrearPlanificacionPage() {
     const [baseConfig, products] = await Promise.all([
         prisma.businessBaseConfig.findUnique({
             where: { businessId },
-            select: { activeChannels: true },
+            include: { business: { select: { name: true } } },
         }),
         prisma.product.findMany({
             where: { businessId },
@@ -41,7 +41,20 @@ export default async function CrearPlanificacionPage() {
                 </div>
             </div>
             <div className="border-t pt-4">
-                <PlanningOrderForm products={products} availableChannels={activeChannels} />
+                <EnhancedPlanningOrderForm
+                    products={products}
+                    businessConfig={{
+                        id: businessId,
+                        name: baseConfig?.business.name ?? "Tu Negocio",
+                        tone: baseConfig?.brandTone ?? "Profesional",
+                        channels: activeChannels,
+                        buyerPersona: {
+                            ageRange: baseConfig?.targetAgeRange ?? "No definido",
+                            pains: baseConfig?.mainPainPoint ? [baseConfig.mainPainPoint] : [],
+                            desires: baseConfig?.mainDesire ? [baseConfig.mainDesire] : []
+                        }
+                    }}
+                />
             </div>
         </div>
     )
