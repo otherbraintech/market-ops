@@ -69,18 +69,25 @@ export async function createPlanningOrder(data: PlanningOrderInput) {
   }
 }
 
-export async function updatePlanningOrder(orderId: string, data: PlanningOrderInput) {
+export async function updatePlanningOrder(orderId: string, data: PlanningOrderInput, options?: { saveAsDraft?: boolean }) {
     try {
         const { dateRange, ...rest } = data
         
-        if (!dateRange) return { error: "El rango de fechas es obligatorio" }
+        if (!orderId) return { error: "Order ID is required" }
+
+        // Remove strict date check to allow partial updates (Drafts)
+        // if (!dateRange) return { error: "El rango de fechas es obligatorio" }
+
+        // Determine status update: if saving as draft, do not change status (keep current). 
+        // If submitting (final update), set to ORDER_CREATED.
+        const statusUpdate = options?.saveAsDraft ? {} : { status: PlanningStatus.ORDER_CREATED }
 
         await prisma.planningOrder.update({
             where: { id: orderId },
             data: {
                 name: rest.name,
-                startDate: dateRange.from,
-                endDate: dateRange.to,
+                startDate: dateRange?.from,
+                endDate: dateRange?.to,
                 excludedDates: rest.excludedDates,
                 objective: rest.objective,
                 priorityProductIds: rest.priorityProductIds,
@@ -90,7 +97,7 @@ export async function updatePlanningOrder(orderId: string, data: PlanningOrderIn
                 channelRules: rest.channelRules,
                 assetSource: rest.assetSource,
                 productionNotes: rest.productionNotes,
-                status: PlanningStatus.ORDER_CREATED, // Updates status from DRAFT if needed
+                ...statusUpdate,
                 contentStrategy: rest.contentStrategy,
                 emotionalTone: rest.emotionalTone,
                 contentPillars: rest.contentPillars,
@@ -98,6 +105,7 @@ export async function updatePlanningOrder(orderId: string, data: PlanningOrderIn
         })
         
         revalidatePath("/planificacion")
+        revalidatePath(`/planificacion/${orderId}`)
         return { success: true, orderId }
     } catch (error) {
         console.error("Error updating planning order:", error)

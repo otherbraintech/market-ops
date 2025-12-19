@@ -41,7 +41,7 @@ export default async function PlanningOrderDetailPage({ params }: { params: Prom
 
         // Map Prisma Order to Form Input
         const initialData: Partial<PlanningOrderInput> = {
-            name: order.name,
+            name: order.name ?? undefined,
             dateRange: {
                 from: order.startDate,
                 to: order.endDate
@@ -66,7 +66,7 @@ export default async function PlanningOrderDetailPage({ params }: { params: Prom
             <div className="flex-1 space-y-4 p-8 pt-6">
                 <div className="flex items-center justify-between space-y-2">
                     <h2 className="text-3xl font-bold tracking-tight">
-                        {order.status === 'DRAFT' ? 'Completar Planificación' : 'Editar Planificación'}
+                        {order.status === 'DRAFT' ? 'Crear Orden de Generación de Ideas para Planificación de Calendario de Contenido' : 'Editar Planificación'}
                     </h2>
                 </div>
                 <div className="border-t pt-4">

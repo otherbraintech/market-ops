@@ -138,10 +138,21 @@ const PILLAR_CONFIG: Record<ContentPillar, string> = {
     STORYTELLING: "Storytelling"
 }
 
-export function EnhancedPlanningOrderForm({ products, businessConfig }: PlanningOrderFormProps) {
+export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, initialData }: PlanningOrderFormProps) {
     const { toast } = useToast()
     const [isPending, startTransition] = React.useTransition()
     const [showExceptions, setShowExceptions] = React.useState(false)
+    const [lastSaved, setLastSaved] = React.useState<Date | null>(null)
+    const [isSaving, setIsSaving] = React.useState(false)
+    const [hasPendingAutosave, setHasPendingAutosave] = React.useState(false)
+    const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+    const initialValuesRef = React.useRef<PlanningOrderInput | null>(null)
+    const lastSavedValuesRef = React.useRef<PlanningOrderInput | null>(null)
+    const skipNextAutosaveRef = React.useRef(false)
+
+    const lsSaveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+
+    const lsDraftKey = orderId ? `planning-draft-${orderId}` : null;
 
     // Configuración inicial de channelRules (vacía para que la IA decida)
     const defaultChannelRules: Record<string, { formats: any[] }> = {}
@@ -152,71 +163,197 @@ export function EnhancedPlanningOrderForm({ products, businessConfig }: Planning
     const form = useForm<PlanningOrderInput>({
         resolver: zodResolver(planningOrderSchema),
         defaultValues: {
-            name: "",
-            objective: PlanningObjective.AUMENTAR_VENTAS,
-            priorityProductIds: [],
-            additionalFocus: "",
-            references: "",
-            frequencyBase: 1.0,
-            channelRules: defaultChannelRules,
-            assetSource: AssetSource.MIXED,
-            productionNotes: "",
+            name: initialData?.name || "",
+            objective: initialData?.objective || PlanningObjective.AUMENTAR_VENTAS,
+            priorityProductIds: initialData?.priorityProductIds || [],
+            additionalFocus: initialData?.additionalFocus || "",
+            references: initialData?.references || "",
+            frequencyBase: initialData?.frequencyBase || 1.0,
+            channelRules: (initialData?.channelRules as any) || defaultChannelRules,
+            assetSource: initialData?.assetSource || AssetSource.MIXED,
+            productionNotes: initialData?.productionNotes || "",
             // Valores por defecto de los nuevos campos
-            contentStrategy: ContentStrategy.PROBLEM_SOLUTION,
-            contentPillars: [ContentPillar.QUALITY],
-            emotionalTone: EmotionalTone.INSPIRATIONAL,
+            contentStrategy: initialData?.contentStrategy || ContentStrategy.PROBLEM_SOLUTION,
+            contentPillars: initialData?.contentPillars || [ContentPillar.QUALITY],
+            emotionalTone: initialData?.emotionalTone || EmotionalTone.INSPIRATIONAL,
             customObjective: "",
+            excludedDates: initialData?.excludedDates || [],
+            dateRange: initialData?.dateRange,
             focusOnBuyerPains: true,
             useCompetitorInsights: true,
         },
     })
 
+    React.useEffect(() => {
+        if (initialValuesRef.current) return
+        const values = form.getValues() as PlanningOrderInput
+        initialValuesRef.current = values
+        lastSavedValuesRef.current = values
+    }, [form])
+
+    // Hydration from LocalStorage
+    React.useEffect(() => {
+        if (!lsDraftKey) return;
+        try {
+            const saved = localStorage.getItem(lsDraftKey);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Restore dates from strings
+                if (parsed.dateRange?.from) parsed.dateRange.from = new Date(parsed.dateRange.from);
+                if (parsed.dateRange?.to) parsed.dateRange.to = new Date(parsed.dateRange.to);
+                if (parsed.excludedDates) parsed.excludedDates = parsed.excludedDates.map((d: string) => new Date(d));
+
+                form.reset({ ...form.getValues(), ...parsed });
+            }
+        } catch (e) {
+            console.error("Error hydrating draft", e);
+        }
+    }, [lsDraftKey, form]);
+
+    // Dual Autosave Effect (Local + DB)
+    React.useEffect(() => {
+        if (!orderId) return;
+
+        const subscription = form.watch((values) => {
+            if (skipNextAutosaveRef.current) {
+                skipNextAutosaveRef.current = false
+                return
+            }
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            setHasPendingAutosave(true)
+            saveTimerRef.current = setTimeout(async () => {
+                setIsSaving(true)
+                try {
+                    await updatePlanningOrder(orderId, values as PlanningOrderInput, { saveAsDraft: true });
+                    setLastSaved(new Date());
+                    lastSavedValuesRef.current = values as PlanningOrderInput
+
+                    skipNextAutosaveRef.current = true
+                    form.reset(values as PlanningOrderInput)
+                } catch (error) {
+                    console.error("Autosave failed", error);
+                } finally {
+                    setIsSaving(false);
+                    setHasPendingAutosave(false)
+                }
+            }, 300000); // 5 minutes debounce
+        });
+
+        return () => {
+            subscription.unsubscribe();
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            if (lsSaveTimerRef.current) clearTimeout(lsSaveTimerRef.current);
+        }
+    }, [form, orderId, lsDraftKey]);
+
     function onSubmit(data: PlanningOrderInput) {
         startTransition(async () => {
-            const result = await createPlanningOrder(data)
+            let result;
+            if (orderId) {
+                result = await updatePlanningOrder(orderId, data)
+            } else {
+                result = await createPlanningOrder(data)
+            }
+
             if (result.error) {
                 toast({
-                    title: "Error al crear la orden",
+                    title: "Error",
                     description: result.error,
                     variant: "destructive",
                 })
             } else {
                 toast({
-                    title: "✅ Orden de planificación creada",
-                    description: "La IA está generando las ideas estratégicas.",
+                    title: orderId ? "✅ Orden actualizada" : "✅ Orden creada",
+                    description: "La planificación ha sido guardada exitosamente.",
                 })
+
+                setLastSaved(new Date())
+                lastSavedValuesRef.current = data
             }
         })
     }
 
+    function onUndoChanges() {
+        const target = lastSavedValuesRef.current ?? initialValuesRef.current
+        if (!target) return
+        skipNextAutosaveRef.current = true
+        setHasPendingAutosave(false)
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+        form.reset(target)
+    }
+
+    async function onManualSave() {
+        if (!orderId) return
+
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+        setHasPendingAutosave(false)
+
+        const values = form.getValues() as PlanningOrderInput
+
+        setIsSaving(true)
+        try {
+            await updatePlanningOrder(orderId, values, { saveAsDraft: true })
+            setLastSaved(new Date())
+            lastSavedValuesRef.current = values
+
+            skipNextAutosaveRef.current = true
+            form.reset(values)
+        } catch (error) {
+            console.error("Manual save failed", error)
+            toast({
+                title: "Error",
+                description: "No se pudo guardar los cambios.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
     return (
         <div className="space-y-8">
-            {/* Header con contexto del negocio */}
-            {businessConfig && (
-                <Card className="border-blue-200 bg-blue-50/50">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold text-gray-900">Configuración base activa</h3>
-                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                                    <div className="flex items-center gap-1">
-                                        <Users className="h-4 w-4" />
-                                        <span>{businessConfig.buyerPersona.ageRange}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {businessConfig.channels.map(ch => (
-                                            <Badge key={ch} variant="secondary" className="text-xs">
-                                                {ch}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                            <Badge variant="outline">{businessConfig.name}</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+
+            <div className="flex justify-between items-center mb-3 mt-[-20px]">
+                <div />
+                <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+                    {orderId && (
+                        <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="h-8"
+                            onClick={onManualSave}
+                            disabled={isSaving || isPending || !form.formState.isDirty}
+                        >
+                            Guardar
+                        </Button>
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={onUndoChanges}
+                        disabled={isSaving || isPending || !form.formState.isDirty}
+                    >
+                        Deshacer
+                    </Button>
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 pl-1">
+                        {isSaving ? (
+                            <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Guardando...
+                            </>
+                        ) : hasPendingAutosave ? (
+                            <span>Autoguardado pendiente</span>
+                        ) : lastSaved ? (
+                            <span>Guardado a las {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        ) : form.formState.isDirty ? (
+                            <span>Cambios sin guardar</span>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
 
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -357,10 +494,72 @@ export function EnhancedPlanningOrderForm({ products, businessConfig }: Planning
                                 />
                             </div>
                         </div>
+
+                        {/* Excepciones (Moved here) */}
+                        {form.watch("dateRange")?.from && form.watch("dateRange")?.to && (
+                            <div className="pt-6 border-t mt-6">
+                                <div className="flex items-center space-x-2 mb-4">
+                                    <Switch
+                                        id="enable-exceptions"
+                                        checked={showExceptions}
+                                        onCheckedChange={setShowExceptions}
+                                    />
+                                    <Label htmlFor="enable-exceptions" className="text-base font-medium">
+                                        Personalizar calendario (Excluir fechas)
+                                    </Label>
+                                </div>
+
+                                {showExceptions && (
+                                    <FormField
+                                        control={form.control}
+                                        name="excludedDates"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormDescription>
+                                                    Selecciona los días específicos donde NO deseas publicar contenido.
+                                                </FormDescription>
+                                                <div className="mt-4 border rounded-lg p-4">
+                                                    <Calendar
+                                                        key={`${form.watch("dateRange.from")?.toString()}-${form.watch("dateRange.to")?.toString()}`}
+                                                        showOutsideDays={false}
+                                                        className="w-full max-w-none"
+                                                        classNames={{
+                                                            months: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+                                                            month: "flex flex-col w-full space-y-4",
+                                                            caption: "flex justify-center pt-1 relative items-center mb-4 w-full",
+                                                        }}
+                                                        mode="multiple"
+                                                        selected={field.value}
+                                                        onSelect={field.onChange}
+                                                        fromDate={form.watch("dateRange.from")}
+                                                        toDate={form.watch("dateRange.to")}
+                                                        disabled={(date) =>
+                                                            !form.watch("dateRange.from") ||
+                                                            !form.watch("dateRange.to") ||
+                                                            date < form.watch("dateRange.from")! ||
+                                                            date > form.watch("dateRange.to")!
+                                                        }
+                                                        defaultMonth={form.watch("dateRange.from")}
+                                                        numberOfMonths={differenceInCalendarMonths(
+                                                            form.watch("dateRange.to")!,
+                                                            form.watch("dateRange.from")!
+                                                        ) + 1
+                                                        }
+                                                        locale={es}
+                                                    />
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* SECCIÓN 2: Estrategia de Contenido */}
                     <div className="space-y-6 rounded-lg border p-6">
+
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Target className="h-5 w-5" />
                             2. Estrategia y Enfoque
@@ -518,20 +717,27 @@ export function EnhancedPlanningOrderForm({ products, businessConfig }: Planning
                                                         ? "border-primary bg-primary/10"
                                                         : "border-gray-200 hover:bg-gray-50"
                                                 )}
-                                                onClick={() => {
-                                                    const current = field.value || []
-                                                    if (current.includes(key as ContentPillar)) {
-                                                        field.onChange(current.filter(v => v !== key))
-                                                    } else {
-                                                        field.onChange([...current, key as ContentPillar])
-                                                    }
-                                                }}
                                             >
                                                 <Checkbox
+                                                    id={`pillar-${key}`}
                                                     checked={field.value?.includes(key as ContentPillar)}
-                                                    onCheckedChange={() => { }}
+                                                    onCheckedChange={(checked) => {
+                                                        const current = field.value || []
+                                                        const isChecked = checked === true
+
+                                                        if (isChecked) {
+                                                            if (!current.includes(key as ContentPillar)) {
+                                                                field.onChange([...current, key as ContentPillar])
+                                                            }
+                                                            return
+                                                        }
+
+                                                        field.onChange(current.filter((v) => v !== (key as ContentPillar)))
+                                                    }}
                                                 />
-                                                <Label className="cursor-pointer text-sm">{label}</Label>
+                                                <Label htmlFor={`pillar-${key}`} className="cursor-pointer text-sm">
+                                                    {label}
+                                                </Label>
                                             </div>
                                         ))}
                                     </div>
@@ -556,36 +762,30 @@ export function EnhancedPlanningOrderForm({ products, businessConfig }: Planning
                                 <FormField
                                     control={form.control}
                                     name="priorityProductIds"
-                                    render={() => (
+                                    render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Productos a destacar</FormLabel>
                                             <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
                                                 {products.map((product) => (
-                                                    <FormField
-                                                        key={product.id}
-                                                        control={form.control}
-                                                        name="priorityProductIds"
-                                                        render={({ field }) => (
-                                                            <div className="flex items-center space-x-2">
-                                                                <Checkbox
-                                                                    id={`product-${product.id}`}
-                                                                    checked={field.value?.includes(product.id)}
-                                                                    onCheckedChange={(checked) => {
-                                                                        if (checked) {
-                                                                            field.onChange([...(field.value || []), product.id])
-                                                                        } else {
-                                                                            field.onChange(
-                                                                                field.value?.filter((value: string) => value !== product.id)
-                                                                            )
-                                                                        }
-                                                                    }}
-                                                                />
-                                                                <Label htmlFor={`product-${product.id}`} className="cursor-pointer">
-                                                                    {product.name}
-                                                                </Label>
-                                                            </div>
-                                                        )}
-                                                    />
+                                                    <div key={product.id} className="flex items-center space-x-2">
+                                                        <Checkbox
+                                                            id={`product-${product.id}`}
+                                                            checked={field.value?.includes(product.id)}
+                                                            onCheckedChange={(checked) => {
+                                                                const current = field.value || []
+                                                                if (checked) {
+                                                                    field.onChange([...current, product.id])
+                                                                } else {
+                                                                    field.onChange(
+                                                                        current.filter((value: string) => value !== product.id)
+                                                                    )
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Label htmlFor={`product-${product.id}`} className="cursor-pointer">
+                                                            {product.name}
+                                                        </Label>
+                                                    </div>
                                                 ))}
                                             </div>
                                             <FormDescription>
@@ -703,68 +903,6 @@ export function EnhancedPlanningOrderForm({ products, businessConfig }: Planning
                             )}
                         />
                     </div>
-
-                    {/* SECCIÓN 4: Excepciones */}
-                    {form.watch("dateRange")?.from && form.watch("dateRange")?.to && (
-                        <div className="space-y-6 rounded-lg border p-6">
-                            <h2 className="text-xl font-semibold flex items-center gap-2">
-                                <BarChart3 className="h-5 w-5" />
-                                4. Personalización del Calendario
-                            </h2>
-
-                            <div className="space-y-4">
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="enable-exceptions"
-                                        checked={showExceptions}
-                                        onCheckedChange={setShowExceptions}
-                                    />
-                                    <Label htmlFor="enable-exceptions" className="text-base">
-                                        Definir días sin publicación
-                                    </Label>
-                                </div>
-
-                                {showExceptions && (
-                                    <FormField
-                                        control={form.control}
-                                        name="excludedDates"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormDescription>
-                                                    Selecciona los días específicos donde NO deseas publicar contenido.
-                                                </FormDescription>
-                                                <div className="mt-4 border rounded-lg p-4">
-                                                    <Calendar
-                                                        mode="multiple"
-                                                        selected={field.value}
-                                                        onSelect={field.onChange}
-                                                        fromDate={form.watch("dateRange.from")}
-                                                        toDate={form.watch("dateRange.to")}
-                                                        disabled={(date) =>
-                                                            !form.watch("dateRange.from") ||
-                                                            !form.watch("dateRange.to") ||
-                                                            date < form.watch("dateRange.from")! ||
-                                                            date > form.watch("dateRange.to")!
-                                                        }
-                                                        defaultMonth={form.watch("dateRange.from")}
-                                                        numberOfMonths={Math.min(
-                                                            differenceInCalendarMonths(
-                                                                form.watch("dateRange.to")!,
-                                                                form.watch("dateRange.from")!
-                                                            ) + 1,
-                                                            3
-                                                        )}
-                                                        locale={es}
-                                                    />
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    )}
 
                     {/* BOTÓN SUBMIT */}
                     <div className="flex justify-end pt-6 border-t">

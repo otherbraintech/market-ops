@@ -233,40 +233,60 @@ enum ChannelFormat {
 
 // --- MODELO PRINCIPAL DE LA ORDEN DE PLANIFICACIÓN ---
 
+enum ContentStrategy {
+  PROBLEM_SOLUTION
+  SOCIAL_PROOF
+  EDUCATIONAL
+  BEHIND_SCENES
+  ENTERTAINMENT
+  URGENCY_SCARCITY
+}
+
+enum EmotionalTone {
+  INSPIRATIONAL
+  URGENT
+  EDUCATIONAL
+  PLAYFUL
+  AUTHORITATIVE
+  EMPATHETIC
+}
+
+enum ContentPillar {
+  QUALITY
+  INNOVATION
+  SUSTAINABILITY
+  COMMUNITY
+  EDUCATION
+  PROMOTION
+  STORYTELLING
+}
+
 model PlanningOrder {
-  id              String         @id @default(uuid())
-  businessId      String
-  createdByUserId String
-  status          PlanningStatus @default(ORDER_CREATED)
-
+  id                 String            @id @default(uuid())
+  businessId         String
+  createdByUserId    String
+  status             PlanningStatus    @default(ORDER_CREATED)
+  name               String? // Nombre de la campaña (Opcional al inicio, generado auto)
   // I. ENFOQUE TEMPORAL Y OBJETIVO (FECHAS Y QUÉ QUEREMOS)
-  startDate DateTime          @db.Date // Inicio del rango a planificar
-  endDate   DateTime          @db.Date // Fin del rango a planificar
-  objective PlanningObjective @default(AUMENTAR_VENTAS)
-
-  // IDs de los productos/servicios priorizados para este plan
+  startDate          DateTime          @db.Date // Inicio del rango a planificar
+  endDate            DateTime          @db.Date // Fin del rango a planificar
+  excludedDates      DateTime[]        @db.Date // Fechas excluidas (Pospuesto)
+  objective          PlanningObjective @default(AUMENTAR_VENTAS)
   priorityProductIds String[]
-
-  // Eje temático o foco adicional ingresado por el usuario
-  additionalFocus String? @db.Text
-
-  // Referencias o inspiración (URLs, cuentas, etc)
-  references String? @db.Text
-
-  // II. DECLARACIONES DE CANALES Y FRECUENCIA
-  frequencyBase Float @default(1.0) // Frecuencia mínima diaria general
-
-  // Reglas de cada canal. Se usa JSON para almacenar la estructura de la matriz/tabla de canales.
-  // Ejemplo: { 'instagram': { 'formats': ['VIDEO', 'STORY'] }, ... }
-  channelRules Json
-
+  additionalFocus    String?           @db.Text
+  references         String?           @db.Text
+  frequencyBase      Float             @default(1.0) // Frecuencia mínima diaria general
+  channelRules       Json
   // III. RECURSOS Y RESTRICCIONES OPERACIONALES
-  assetSource     AssetSource @default(MIXED)
-  productionNotes String?     @db.Text // Restricciones de producción ingresadas
-
+  assetSource        AssetSource       @default(MIXED)
+  productionNotes    String?           @db.Text // Restricciones de producción ingresadas
+  // IV. ESTRATEGIA (NUEVOS CAMPOS)
+  contentStrategy    ContentStrategy?
+  emotionalTone      EmotionalTone?
+  contentPillars     ContentPillar[]
   // LOGS Y RELACIONES
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
   creator  User     @relation(fields: [createdByUserId], references: [id])
