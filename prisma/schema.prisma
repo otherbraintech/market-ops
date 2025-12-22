@@ -262,31 +262,36 @@ enum ContentPillar {
 }
 
 model PlanningOrder {
-  id                 String            @id @default(uuid())
-  businessId         String
-  createdByUserId    String
-  status             PlanningStatus    @default(ORDER_CREATED)
-  name               String? // Nombre de la campaña (Opcional al inicio, generado auto)
+  id                  String            @id @default(uuid())
+  businessId          String
+  createdByUserId     String
+  status              PlanningStatus    @default(ORDER_CREATED)
+  name                String? // Nombre de la campaña (Opcional al inicio, generado auto)
   // I. ENFOQUE TEMPORAL Y OBJETIVO (FECHAS Y QUÉ QUEREMOS)
-  startDate          DateTime          @db.Date // Inicio del rango a planificar
-  endDate            DateTime          @db.Date // Fin del rango a planificar
-  excludedDates      DateTime[]        @db.Date // Fechas excluidas (Pospuesto)
-  objective          PlanningObjective @default(AUMENTAR_VENTAS)
-  priorityProductIds String[]
-  additionalFocus    String?           @db.Text
-  references         String?           @db.Text
-  frequencyBase      Float             @default(1.0) // Frecuencia mínima diaria general
-  channelRules       Json
+  startDate           DateTime          @db.Date // Inicio del rango a planificar
+  endDate             DateTime          @db.Date // Fin del rango a planificar
+  excludedDates       DateTime[]        @db.Date // Fechas excluidas (Pospuesto)
+  objective           PlanningObjective @default(AUMENTAR_VENTAS)
+  priorityProductIds  String[]
+  additionalFocus     String?           @db.Text
+  references          String?           @db.Text
+  frequencyBase       Float             @default(1.0) // Frecuencia mínima diaria general
+  channelRules        Json
   // III. RECURSOS Y RESTRICCIONES OPERACIONALES
-  assetSource        AssetSource       @default(MIXED)
-  productionNotes    String?           @db.Text // Restricciones de producción ingresadas
+  assetSource         AssetSource       @default(MIXED)
+  productionNotes     String?           @db.Text // Restricciones de producción ingresadas
   // IV. ESTRATEGIA (NUEVOS CAMPOS)
-  contentStrategy    ContentStrategy?
-  emotionalTone      EmotionalTone?
-  contentPillars     ContentPillar[]
+  contentStrategy     ContentStrategy?
+  emotionalTone       EmotionalTone?
+  contentPillars      ContentPillar[]
+  // V. DETALLES DE CAMPAÑA ESPECÍFICOS (NUEVOS)
+  campaignAudience    String?           @db.Text // Público objetivo específico de la campaña
+  callToAction        String?           @db.Text // CTA principal
+  keywords            String[] // Palabras clave o temas de búsqueda
+  visualStyleOverride String?           @db.Text // Estilo visual específico para esta orden
   // LOGS Y RELACIONES
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   business Business @relation(fields: [businessId], references: [id])
   creator  User     @relation(fields: [createdByUserId], references: [id])

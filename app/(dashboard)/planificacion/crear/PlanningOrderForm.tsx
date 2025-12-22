@@ -161,28 +161,82 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
     })
 
     const form = useForm<PlanningOrderInput>({
-        resolver: zodResolver(planningOrderSchema),
+        resolver: zodResolver(planningOrderSchema) as any,
         defaultValues: {
             name: initialData?.name || "",
             objective: initialData?.objective || PlanningObjective.AUMENTAR_VENTAS,
             priorityProductIds: initialData?.priorityProductIds || [],
-            additionalFocus: initialData?.additionalFocus || "",
             references: initialData?.references || "",
             frequencyBase: initialData?.frequencyBase || 1.0,
             channelRules: (initialData?.channelRules as any) || defaultChannelRules,
             assetSource: initialData?.assetSource || AssetSource.MIXED,
             productionNotes: initialData?.productionNotes || "",
+            excludedDates: initialData?.excludedDates || [],
+            dateRange: initialData?.dateRange,
+
             // Valores por defecto de los nuevos campos
             contentStrategy: initialData?.contentStrategy || ContentStrategy.PROBLEM_SOLUTION,
             contentPillars: initialData?.contentPillars || [ContentPillar.QUALITY],
             emotionalTone: initialData?.emotionalTone || EmotionalTone.INSPIRATIONAL,
             customObjective: "",
-            excludedDates: initialData?.excludedDates || [],
-            dateRange: initialData?.dateRange,
-            focusOnBuyerPains: true,
-            useCompetitorInsights: true,
+            campaignAudience: initialData?.campaignAudience || "",
+            callToAction: initialData?.callToAction || "",
+            keywords: initialData?.keywords || [],
+            visualStyleOverride: initialData?.visualStyleOverride || "",
+            focusOnBuyerPains: initialData?.focusOnBuyerPains ?? true,
+            useCompetitorInsights: initialData?.useCompetitorInsights ?? true,
         },
     })
+
+    const [keywordInput, setKeywordInput] = React.useState("")
+    const [selectedStylePreset, setSelectedStylePreset] = React.useState<string>("custom")
+
+    const STYLE_PRESETS = [
+        { value: "minimalist", label: "Minimalista y Limpio", desc: "Fondos neutros, tipografía simple, poco ruido visual." },
+        { value: "corporate", label: "Corporativo y Profesional", desc: "Azules/grises, estructurado, confiable." },
+        { value: "vibrant", label: "Vibrante y Pop", desc: "Colores saturados, alto contraste, dinámico." },
+        { value: "luxury", label: "Lujo y Elegante", desc: "Negro/Dorado, serif, sofisticado, minimalista dark." },
+        { value: "ugc", label: "UGC / Casero", desc: "Estilo orgánico, amateur intencional, cercano." },
+        { value: "tech", label: "Futurista / Tech", desc: "Neones, gradientes, moderno." },
+        { value: "custom", label: "Personalizado...", desc: "Escribe tu propio estilo." },
+    ]
+
+    const handleStyleChange = (val: string) => {
+        setSelectedStylePreset(val)
+        if (val === "custom") {
+            form.setValue("visualStyleOverride", "")
+        } else {
+            const preset = STYLE_PRESETS.find(p => p.value === val)
+            if (preset) form.setValue("visualStyleOverride", preset.label)
+        }
+    }
+
+    React.useEffect(() => {
+        // Initialize style preset if value exists
+        const currentStyle = initialData?.visualStyleOverride || ""
+        const preset = STYLE_PRESETS.find(p => p.value !== 'custom' && currentStyle.toLowerCase().includes(p.label.toLowerCase()))
+        if (preset) {
+            setSelectedStylePreset(preset.value)
+        } else if (currentStyle) {
+            setSelectedStylePreset("custom")
+        }
+    }, [initialData?.visualStyleOverride])
+
+    const handleAddKeyword = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault()
+            const val = keywordInput.trim()
+            if (val && !form.getValues("keywords").includes(val)) {
+                form.setValue("keywords", [...form.getValues("keywords"), val])
+                setKeywordInput("")
+            }
+        }
+    }
+
+    const removeKeyword = (k: string) => {
+        // Force refresh by spreading new array
+        form.setValue("keywords", [...form.getValues("keywords").filter(kw => kw !== k)])
+    }
 
     React.useEffect(() => {
         if (initialValuesRef.current) return
@@ -557,12 +611,68 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                         )}
                     </div>
 
-                    {/* SECCIÓN 2: Estrategia de Contenido */}
+                    {/* SECCIÓN 2: Canales y Formatos (NUEVA UI) */}
+                    {businessConfig && businessConfig.channels.length > 0 && (
+                        <div className="space-y-6 rounded-lg border p-6">
+                            <h2 className="text-xl font-semibold flex items-center gap-2">
+                                <Zap className="h-5 w-5" />
+                                2. Canales y Formatos
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Selecciona qué formatos de contenido quieres que la IA genere para cada canal.
+                            </p>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {businessConfig.channels.map(channel => (
+                                    <div key={channel} className="border rounded-lg p-4 space-y-3">
+                                        <div className="font-semibold capitalize flex items-center gap-2">
+                                            {channel}
+                                        </div>
+                                        <FormField
+                                            control={form.control}
+                                            name={`channelRules.${channel}.formats` as any}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {["VIDEO", "STATIC", "CAROUSEL", "STORY"].map((fmt) => {
+                                                            const isSelected = (field.value || []).includes(fmt);
+                                                            return (
+                                                                <div
+                                                                    key={fmt}
+                                                                    onClick={() => {
+                                                                        const current = field.value || [];
+                                                                        if (isSelected) {
+                                                                            field.onChange(current.filter((c: string) => c !== fmt));
+                                                                        } else {
+                                                                            field.onChange([...current, fmt]);
+                                                                        }
+                                                                    }}
+                                                                    className={cn(
+                                                                        "cursor-pointer text-xs font-medium px-3 py-1.5 rounded-full border transition-colors",
+                                                                        isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted"
+                                                                    )}
+                                                                >
+                                                                    {fmt}
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SECCIÓN 3: Estrategia y Enfoque */}
                     <div className="space-y-6 rounded-lg border p-6">
 
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Target className="h-5 w-5" />
-                            2. Estrategia y Enfoque
+                            3. Estrategia y Enfoque
                         </h2>
 
                         <div className="grid gap-6 md:grid-cols-2">
@@ -750,11 +860,160 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                         />
                     </div>
 
-                    {/* SECCIÓN 3: Productos y Material */}
+                    {/* SECCIÓN 4: Contexto Creativo (Para la IA) */}
+                    <div className="space-y-6 rounded-lg border p-6 bg-blue-50/20">
+                        <h2 className="text-xl font-semibold flex items-center gap-2">
+                            <Lightbulb className="h-5 w-5" />
+                            4. Contexto Creativo (Para la IA)
+                        </h2>
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <FormField
+                                control={form.control}
+                                name="campaignAudience"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-2">
+                                            <Users className="w-4 h-4" /> Público Objetivo de Campaña
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                placeholder="Ej. Clientes que compraron en los últimos 6 meses, o Nuevos usuarios interesados en tecnología."
+                                                className="resize-none h-24"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Si es diferente al público general de tu marca.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <div className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="callToAction"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Llamado a la Acción (CTA)</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Ej. 'Regístrate aquí', 'Comenta INFO', 'Compra con 20% OFF'" {...field} />
+                                            </FormControl>
+                                            <FormDescription>
+                                                La acción principal que quieres que realicen.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="visualStyleOverride"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Estilo Visual</FormLabel>
+                                            <div className="space-y-3">
+                                                <Select
+                                                    value={selectedStylePreset}
+                                                    onValueChange={handleStyleChange}
+                                                >
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecciona un estilo visual" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {STYLE_PRESETS.map((style) => (
+                                                            <SelectItem key={style.value} value={style.value}>
+                                                                <div className="flex flex-col items-start text-left">
+                                                                    <span className="font-medium">{style.label}</span>
+                                                                    <span className="text-xs text-muted-foreground">{style.desc}</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+
+                                                {selectedStylePreset === "custom" && (
+                                                    <Input
+                                                        placeholder="Describe el estilo visual (ej. Cyberpunk, Vintage, etc.)"
+                                                        {...field}
+                                                    />
+                                                )}
+
+                                                {selectedStylePreset !== "custom" && (
+                                                    <div className="hidden">
+                                                        <Input {...field} value={(() => {
+                                                            const preset = STYLE_PRESETS.find(p => p.value === selectedStylePreset)
+                                                            return preset ? preset.label : ""
+                                                        })()} readOnly />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        <FormField
+                            control={form.control}
+                            name="keywords"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Palabras Clave / Temas de Búsqueda</FormLabel>
+                                    <div className="space-y-3">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={keywordInput}
+                                                onChange={(e) => setKeywordInput(e.target.value)}
+                                                onKeyDown={handleAddKeyword}
+                                                placeholder="Escribe una palabra y presiona Enter..."
+                                                className="max-w-sm"
+                                            />
+                                            <Button type="button" onClick={() => {
+                                                const val = keywordInput.trim()
+                                                if (val && !field.value.includes(val)) {
+                                                    field.onChange([...field.value, val])
+                                                    setKeywordInput("")
+                                                }
+                                            }} variant="secondary">Agregar</Button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 min-h-[2.5rem] p-2 border rounded-md bg-background">
+                                            {field.value.length === 0 && (
+                                                <span className="text-sm text-muted-foreground italic">Sin palabras clave</span>
+                                            )}
+                                            {field.value.map((kw, i) => (
+                                                <Badge key={i} variant="secondary" className="gap-1 pr-1">
+                                                    {kw}
+                                                    <span
+                                                        className="cursor-pointer hover:bg-muted rounded-full p-0.5"
+                                                        onClick={() => removeKeyword(kw)}
+                                                    >
+                                                        ×
+                                                    </span>
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <FormDescription>
+                                        Ayuda a la IA a encontrar tendencias y vocabulario relevante.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+
+                    {/* SECCIÓN 5: Productos y Material */}
                     <div className="space-y-6 rounded-lg border p-6">
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Sparkles className="h-5 w-5" />
-                            3. Productos y Material
+                            5. Productos y Material
                         </h2>
 
                         <div className="grid gap-6 md:grid-cols-2">
@@ -870,38 +1129,20 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                 name="productionNotes"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Notas de producción</FormLabel>
+                                        <FormLabel>Restricciones / Directrices Negativas</FormLabel>
                                         <FormControl>
                                             <Textarea
-                                                placeholder="Restricciones, horarios, equipamiento..."
+                                                placeholder="Ej. No usar el color rojo, No usar música rock, Evitar jerga juvenil..."
                                                 className="min-h-[80px]"
                                                 {...field}
                                             />
                                         </FormControl>
-                                        <FormDescription>Opcional</FormDescription>
+                                        <FormDescription>Qué debe EVITAR la IA</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
                         </div>
-
-                        <FormField
-                            control={form.control}
-                            name="additionalFocus"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Eje temático adicional</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="Ej: Sostenibilidad, innovación local, etc."
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>Opcional - Para enfatizar un tema específico</FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
                     </div>
 
                     {/* BOTÓN SUBMIT */}

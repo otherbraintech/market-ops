@@ -3,10 +3,22 @@
 import { useState } from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { Calendar, Eye, FileText, Target, MoreVertical, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import Link from "next/link"
+import { Calendar, Eye, FileText, Target, MoreVertical, Clock, CheckCircle2, XCircle, AlertCircle, Pencil } from "lucide-react"
 import { PlanningOrder, PlanningObjective, ContentStrategy } from "@prisma/client"
 
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
+import { duplicatePlanningOrder, deletePlanningOrder } from "@/app/actions/planning"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Copy, Trash, Loader2 } from "lucide-react"
 import {
     Card,
     CardContent,
@@ -60,6 +72,31 @@ function SparklesIcon(props: any) {
 
 export function PlanningList({ orders }: PlanningListProps) {
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
+    const { toast } = useToast()
+    const [isPending, startTransition] = useState<string | null>(null)
+
+    const handleDuplicate = async (id: string, name: string) => {
+        startTransition(id)
+        const result = await duplicatePlanningOrder(id)
+        if (result.success) {
+            toast({ title: "Plan duplicado", description: `Se ha creado una copia de ${name}` })
+        } else {
+            toast({ title: "Error", description: "No se pudo duplicar el plan", variant: "destructive" })
+        }
+        startTransition(null)
+    }
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("¿Estás seguro de que quieres eliminar este plan?")) return
+        startTransition(id)
+        const result = await deletePlanningOrder(id)
+        if (result.success) {
+            toast({ title: "Plan eliminado", description: "El plan ha sido eliminado correctamente" })
+        } else {
+            toast({ title: "Error", description: "No se pudo eliminar el plan", variant: "destructive" })
+        }
+        startTransition(null)
+    }
 
     return (
         <>
@@ -76,9 +113,31 @@ export function PlanningList({ orders }: PlanningListProps) {
                                         <StatusIcon className="w-3 h-3 mr-1" />
                                         {status.label}
                                     </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                        {format(new Date(order.createdAt), "d MMM", { locale: es })}
-                                    </span>
+
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2" disabled={isPending === order.id}>
+                                                {isPending === order.id ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <MoreVertical className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleDuplicate(order.id, order.name)}>
+                                                <Copy className="mr-2 h-4 w-4" /> Duplicar
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                className="text-red-600 focus:text-red-600"
+                                                onClick={() => handleDelete(order.id)}
+                                            >
+                                                <Trash className="mr-2 h-4 w-4" /> Eliminar
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                                 <CardTitle className="text-lg leading-tight line-clamp-2">
                                     {order.name}
@@ -104,14 +163,24 @@ export function PlanningList({ orders }: PlanningListProps) {
                                     </div>
                                 </div>
                             </CardContent>
-                            <CardFooter className="pt-3 border-t bg-muted/5">
+                            <CardFooter className="pt-3 border-t bg-muted/5 flex gap-2">
                                 <Button
                                     variant="ghost"
-                                    className="w-full justify-between hover:bg-white group-hover:border-primary/20 hover:border"
+                                    className="flex-1 hover:bg-white group-hover:border-primary/20 hover:border"
                                     onClick={() => setSelectedOrder(order)}
                                 >
-                                    Ver detalles
-                                    <Eye className="w-4 h-4 text-muted-foreground" />
+                                    Ver
+                                    <Eye className="w-4 h-4 ml-2 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 hover:bg-white group-hover:border-primary/20 hover:border"
+                                    asChild
+                                >
+                                    <Link href={`/planificacion/${order.id}/editar`}>
+                                        Editar
+                                        <Pencil className="w-4 h-4 ml-2 text-muted-foreground" />
+                                    </Link>
                                 </Button>
                             </CardFooter>
                         </Card>

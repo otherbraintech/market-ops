@@ -58,6 +58,10 @@ export async function createPlanningOrder(data: PlanningOrderInput) {
               contentStrategy: rest.contentStrategy,
               emotionalTone: rest.emotionalTone,
               contentPillars: rest.contentPillars,
+              campaignAudience: rest.campaignAudience,
+              callToAction: rest.callToAction,
+              keywords: rest.keywords,
+              visualStyleOverride: rest.visualStyleOverride,
           }
       })
       
@@ -101,6 +105,10 @@ export async function updatePlanningOrder(orderId: string, data: PlanningOrderIn
                 contentStrategy: rest.contentStrategy,
                 emotionalTone: rest.emotionalTone,
                 contentPillars: rest.contentPillars,
+                campaignAudience: rest.campaignAudience,
+                callToAction: rest.callToAction,
+                keywords: rest.keywords,
+                visualStyleOverride: rest.visualStyleOverride,
             }
         })
         
@@ -155,4 +163,44 @@ export async function createDraftPlanningOrder(businessId: string) {
             priorityProductIds: [],
         }
     })
+}
+
+export async function duplicatePlanningOrder(orderId: string) {
+    const order = await prisma.planningOrder.findUnique({
+        where: { id: orderId }
+    })
+
+    if (!order) return { error: "Order not found" }
+
+    try {
+        const { id, createdAt, updatedAt, ...rest } = order
+        
+        const newOrder = await prisma.planningOrder.create({
+            data: {
+                ...rest,
+                channelRules: rest.channelRules as any, // Fix JSON type mismatch
+                name: `Copia de ${order.name}`,
+                status: PlanningStatus.DRAFT,
+            }
+        })
+        
+        revalidatePath("/planificacion")
+        return { success: true, orderId: newOrder.id }
+    } catch (error) {
+        console.error("Error duplicating order:", error)
+        return { error: "Failed to duplicate order" }
+    }
+}
+
+export async function deletePlanningOrder(orderId: string) {
+    try {
+        await prisma.planningOrder.delete({
+            where: { id: orderId }
+        })
+        revalidatePath("/planificacion")
+        return { success: true }
+    } catch (error) {
+        console.error("Error deleting order:", error)
+        return { error: "Failed to delete order" }
+    }
 }

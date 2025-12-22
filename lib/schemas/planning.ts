@@ -97,6 +97,13 @@ export const planningOrderSchema = z.object({
   customObjective: z.string().optional(),
   focusOnBuyerPains: z.boolean().default(true),
   useCompetitorInsights: z.boolean().default(true),
+  
+  // Nuevos campos para contexto de IA
+  campaignAudience: z.string().optional(),
+  callToAction: z.string().optional(),
+  keywords: z.array(z.string()).default([]), // Puede ser ingresado como CSV y convertido a array
+  visualStyleOverride: z.string().optional(),
+  
   // Nota: channelRules se mantiene pero puede estar vacío (la IA decide)
 })
 

@@ -48,7 +48,14 @@ export function TeamSwitcher({
     const { isMobile } = useSidebar()
     const router = useRouter()
     const { setIsBusinessSwitching } = useBusiness()
-    const [activeBusiness, setActiveBusiness] = React.useState<Business | null>(null)
+    const [activeBusiness, setActiveBusiness] = React.useState<Business | null>(() => {
+        if (!businesses || businesses.length === 0) return null
+        if (initialActiveId) {
+            const found = businesses.find(b => b.id === initialActiveId)
+            if (found) return found
+        }
+        return businesses[0]
+    })
     const [isPending, startTransition] = React.useTransition()
 
     // Sync global loading state with local transition state
@@ -56,17 +63,19 @@ export function TeamSwitcher({
         setIsBusinessSwitching(isPending)
     }, [isPending, setIsBusinessSwitching])
 
-    // Initialize from localStorage or initialActiveId, fallback to first
+    // Sync with localStorage on mount
     React.useEffect(() => {
         if (!businesses || businesses.length === 0) return
-        let id: string | null = null
         try {
-            id = typeof window !== 'undefined' ? localStorage.getItem('activeBusinessId') : null
+            const localId = typeof window !== 'undefined' ? localStorage.getItem('activeBusinessId') : null
+            if (localId && localId !== activeBusiness?.id) {
+                const found = businesses.find(b => b.id === localId)
+                if (found) {
+                    setActiveBusiness(found)
+                }
+            }
         } catch { }
-        if (!id && initialActiveId) id = initialActiveId
-        const found = id ? businesses.find(b => b.id === id) : null
-        setActiveBusiness(found || businesses[0])
-    }, [businesses, initialActiveId])
+    }, [businesses])
 
     const selectBusiness = (business: Business) => {
         setActiveBusiness(business)
@@ -92,6 +101,7 @@ export function TeamSwitcher({
                             size="lg"
                             className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                             disabled={isPending}
+                            suppressHydrationWarning
                         >
                             {activeBusiness?.imageUrl ? (
                                 <Image
