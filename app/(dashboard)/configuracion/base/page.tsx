@@ -17,7 +17,8 @@ export default async function ConfiguracionBasePage() {
       brand_language_level: "",
       allowed_emojis: true,
       forbidden_words: "",
-      target_age_range: "",
+      target_audience_all_ages: false,
+      target_audience_age_ranges: "",
       target_gender: "",
 
       main_pain_point: "",
@@ -51,7 +52,8 @@ export default async function ConfiguracionBasePage() {
       (config?.brandLanguageLevel?.toLowerCase() as BaseConfigFormState["brand_language_level"]) ?? "",
     allowed_emojis: config?.allowedEmojis ?? true,
     forbidden_words: config?.forbiddenWords ?? "",
-    target_age_range: config?.targetAgeRange ?? "",
+    target_audience_all_ages: config?.targetAudienceAllAges ?? false,
+    target_audience_age_ranges: config?.targetAudienceAgeRanges?.join(", ") ?? "",
     target_gender: (config?.targetGender?.toLowerCase() as BaseConfigFormState["target_gender"]) ?? "",
 
     main_pain_point: config?.mainPainPoint ?? "",

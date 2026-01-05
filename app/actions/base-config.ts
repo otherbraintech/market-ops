@@ -38,7 +38,8 @@ const baseConfigSchema = z.object({
   brand_language_level: z.enum(["simple", "medio", "avanzado"]).nullable().optional(),
   allowed_emojis: z.union([z.literal("on"), z.literal("off"), z.string()]).optional(),
   forbidden_words: z.string().nullable().optional(),
-  target_age_range: z.string().nullable().optional(),
+  target_audience_all_ages: z.union([z.literal("on"), z.literal("off"), z.boolean()]).optional(),
+  target_audience_age_ranges: z.string().nullable().optional(),
   target_gender: z.enum(["hombre", "mujer", "mixto"]).nullable().optional(),
   main_pain_point: z.string().nullable().optional(),
   main_desire: z.string().nullable().optional(),
@@ -134,7 +135,8 @@ export async function saveBusinessBaseConfig(formData: FormData): Promise<{ succ
     brand_language_level: getNullableEnumValue("brand_language_level"),
     allowed_emojis: formData.get("allowed_emojis") ? "on" : "off",
     forbidden_words: preferHidden("forbidden_words_hidden", "forbidden_words"),
-    target_age_range: getNullableString("target_age_range"),
+    target_audience_all_ages: formData.get("target_audience_all_ages") ? "on" : "off",
+    target_audience_age_ranges: getNullableString("target_audience_age_ranges"),
     target_gender: getNullableEnumValue("target_gender"),
     main_pain_point: getNullableString("main_pain_point"),
     main_desire: getNullableString("main_desire"),
@@ -164,6 +166,11 @@ export async function saveBusinessBaseConfig(formData: FormData): Promise<{ succ
     return value
   }
 
+  const dbStringArray = (value: string | null | undefined): string[] => {
+    if (!value) return []
+    return value.split(",").map(v => v.trim()).filter(Boolean)
+  }
+
   const dbNullableEnum = <T>(
     value: string | null | undefined,
     mapper: (v: string) => T
@@ -186,7 +193,8 @@ export async function saveBusinessBaseConfig(formData: FormData): Promise<{ succ
       brandLanguageLevel: dbNullableEnum(parsed.data.brand_language_level, mapBrandLanguageLevel),
       allowedEmojis: parsed.data.allowed_emojis === "on",
       forbiddenWords: dbNullableString(parsed.data.forbidden_words),
-      targetAgeRange: dbNullableString(parsed.data.target_age_range),
+      targetAudienceAllAges: parsed.data.target_audience_all_ages === "on",
+      targetAudienceAgeRanges: dbStringArray(parsed.data.target_audience_age_ranges),
       targetGender: dbNullableEnum(parsed.data.target_gender, mapTargetGender),
       mainPainPoint: dbNullableString(parsed.data.main_pain_point),
       mainDesire: dbNullableString(parsed.data.main_desire),
@@ -210,7 +218,8 @@ export async function saveBusinessBaseConfig(formData: FormData): Promise<{ succ
       brandLanguageLevel: dbNullableEnum(parsed.data.brand_language_level, mapBrandLanguageLevel),
       allowedEmojis: parsed.data.allowed_emojis === "on",
       forbiddenWords: dbNullableString(parsed.data.forbidden_words),
-      targetAgeRange: dbNullableString(parsed.data.target_age_range),
+      targetAudienceAllAges: parsed.data.target_audience_all_ages === "on",
+      targetAudienceAgeRanges: dbStringArray(parsed.data.target_audience_age_ranges),
       targetGender: dbNullableEnum(parsed.data.target_gender, mapTargetGender),
       mainPainPoint: dbNullableString(parsed.data.main_pain_point),
       mainDesire: dbNullableString(parsed.data.main_desire),

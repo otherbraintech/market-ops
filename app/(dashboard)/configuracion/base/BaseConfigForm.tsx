@@ -1,11 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { HelpCircle, Loader2 } from "lucide-react"
+import { HelpCircle, Loader2, Instagram, Facebook, Smartphone } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useBusiness } from "@/contexts/business-context"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { saveBusinessBaseConfig } from "@/app/actions/base-config"
 import { useToast } from "@/hooks/use-toast"
 
@@ -65,7 +70,8 @@ export interface BaseConfigFormState {
   brand_language_level: "" | "simple" | "medio" | "avanzado"
   allowed_emojis: boolean
   forbidden_words: string
-  target_age_range: string
+  target_audience_all_ages: boolean
+  target_audience_age_ranges: string
   target_gender: "" | "hombre" | "mujer" | "mixto"
 
   main_pain_point: string
@@ -85,18 +91,24 @@ export interface BaseConfigFormState {
 export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormState }) {
   const [form, setForm] = React.useState<BaseConfigFormState>(initialForm)
 
+  React.useEffect(() => {
+    setForm(initialForm)
+  }, [initialForm])
+
   const [brandPersonalityInput, setBrandPersonalityInput] = React.useState("")
   const [forbiddenWordsInput, setForbiddenWordsInput] = React.useState("")
+  const [helperAgeMin, setHelperAgeMin] = React.useState("")
+  const [helperAgeMax, setHelperAgeMax] = React.useState("")
   const brandColorPickerRef = React.useRef<HTMLInputElement | null>(null)
   const brandColorTextRef = React.useRef<HTMLInputElement | null>(null)
   const [editingBrandColor, setEditingBrandColor] = React.useState<string | null>(null)
-  const [ageMin, setAgeMin] = React.useState("")
-  const [ageMax, setAgeMax] = React.useState("")
 
   const brandPersonalityTags = parseCommaList(form.brand_personality)
   const forbiddenWordsTags = parseCommaList(form.forbidden_words)
   const activeChannelsTags = parseCommaList(form.active_channels)
   const brandColorTags = parseCommaList(form.brand_colors)
+  const ageTags = parseCommaList(form.target_audience_age_ranges)
+  const isAllAges = form.target_audience_all_ages
 
   function setBrandColorEditorValue(value: string) {
     const normalized = normalizeHex(value)
@@ -154,16 +166,37 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
     }
   }
 
-  React.useEffect(() => {
-    if (!form.target_age_range) {
-      setAgeMin("")
-      setAgeMax("")
+  // Age helper functions
+  const COMMON_AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
+
+  function toggleAllAges(checked: boolean) {
+    setForm(f => ({ ...f, target_audience_all_ages: checked }))
+  }
+
+  function addAgeRange(range: string) {
+    if (isAllAges) {
+      // If adding a specific range while "All ages" is checked, uncheck "All ages"
+      setForm(f => ({
+        ...f,
+        target_audience_all_ages: false,
+        target_audience_age_ranges: range
+      }))
       return
     }
-    const [min, max] = form.target_age_range.split("-").map((v) => v.trim())
-    setAgeMin(min || "")
-    setAgeMax(max || "")
-  }, [form.target_age_range])
+    setForm(f => {
+      const current = parseCommaList(f.target_audience_age_ranges)
+      if (current.includes(range)) return f
+      return { ...f, target_audience_age_ranges: [...current, range].join(", ") }
+    })
+  }
+
+  function removeAgeRange(range: string) {
+    setForm(f => {
+      const current = parseCommaList(f.target_audience_age_ranges)
+      const next = current.filter(r => r !== range)
+      return { ...f, target_audience_age_ranges: next.join(", ") }
+    })
+  }
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -294,12 +327,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label htmlFor="years_in_market" className="text-sm font-medium">
+              <Label htmlFor="years_in_market">
                 <LabelWithTooltip
                   label="Años en el mercado"
                   tooltip="Cuánto tiempo llevas operando con este negocio o marca."
                 />
-              </label>
+              </Label>
               <Input
                 id="years_in_market"
                 name="years_in_market"
@@ -312,12 +345,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="country" className="text-sm font-medium">
+              <Label htmlFor="country">
                 <LabelWithTooltip
                   label="País"
                   tooltip="País principal donde opera el negocio."
                 />
-              </label>
+              </Label>
               <Input
                 id="country"
                 name="country"
@@ -328,12 +361,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="city" className="text-sm font-medium">
+              <Label htmlFor="city">
                 <LabelWithTooltip
                   label="Ciudad"
                   tooltip="Ciudad principal de operación o sede."
                 />
-              </label>
+              </Label>
               <Input
                 id="city"
                 name="city"
@@ -345,27 +378,27 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
             </div>
           </div>
           <div className="space-y-2">
-            <label htmlFor="coverage_area" className="text-sm font-medium">
+            <Label htmlFor="coverage_area">
               <LabelWithTooltip
                 label="Alcance"
                 tooltip="Nivel de alcance actual de tu negocio: local, nacional o internacional."
               />
-            </label>
-            <select
-              id="coverage_area"
-              name="coverage_area"
+            </Label>
+            <Select
               value={form.coverage_area}
-              onChange={handleChange}
+              name="coverage_area"
+              onValueChange={(val) => setForm(f => ({ ...f, coverage_area: val as any }))}
               disabled={isPending}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             >
-              <option value="">
-                Selecciona alcance
-              </option>
-              <option value="local">Local</option>
-              <option value="nacional">Nacional</option>
-              <option value="internacional">Internacional</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona alcance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">Local</SelectItem>
+                <SelectItem value="nacional">Nacional</SelectItem>
+                <SelectItem value="internacional">Internacional</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
@@ -376,80 +409,78 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label htmlFor="brand_tone" className="text-sm font-medium">
+              <Label htmlFor="brand_tone">
                 <LabelWithTooltip
                   label="Tono de marca"
                   tooltip="Cómo quieres que suene tu comunicación: más formal, cercana, divertida, motivadora, etc."
                 />
-              </label>
-              <select
-                id="brand_tone"
-                name="brand_tone"
+              </Label>
+              <Select
                 value={form.brand_tone}
-                onChange={handleChange}
+                name="brand_tone"
+                onValueChange={(val) => setForm(f => ({ ...f, brand_tone: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona tono
-                </option>
-                <option value="formal">Formal</option>
-                <option value="juvenil">Juvenil</option>
-                <option value="profesional">Profesional</option>
-                <option value="premium">Premium</option>
-                <option value="divertido">Divertido</option>
-                <option value="cercano">Cercano</option>
-                <option value="motivador">Motivador</option>
-                <option value="serio">Serio</option>
-                <option value="emocional">Emocional</option>
-                <option value="informal">Informal</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tono" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="formal">Formal</SelectItem>
+                  <SelectItem value="juvenil">Juvenil</SelectItem>
+                  <SelectItem value="profesional">Profesional</SelectItem>
+                  <SelectItem value="premium">Premium</SelectItem>
+                  <SelectItem value="divertido">Divertido</SelectItem>
+                  <SelectItem value="cercano">Cercano</SelectItem>
+                  <SelectItem value="motivador">Motivador</SelectItem>
+                  <SelectItem value="serio">Serio</SelectItem>
+                  <SelectItem value="emocional">Emocional</SelectItem>
+                  <SelectItem value="informal">Informal</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="brand_language_level" className="text-sm font-medium">
+              <Label htmlFor="brand_language_level">
                 <LabelWithTooltip
                   label="Nivel de lenguaje"
                   tooltip="Qué tan técnico o sencillo debe ser el lenguaje de la comunicación."
                 />
-              </label>
-              <select
-                id="brand_language_level"
-                name="brand_language_level"
+              </Label>
+              <Select
                 value={form.brand_language_level}
-                onChange={handleChange}
+                name="brand_language_level"
+                onValueChange={(val) => setForm(f => ({ ...f, brand_language_level: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona nivel
-                </option>
-                <option value="simple">Simple</option>
-                <option value="medio">Medio</option>
-                <option value="avanzado">Avanzado</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona nivel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="simple">Simple</SelectItem>
+                  <SelectItem value="medio">Medio</SelectItem>
+                  <SelectItem value="avanzado">Avanzado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2 pt-6">
-              <input
+              <Checkbox
                 id="allowed_emojis"
-                name="allowed_emojis"
-                type="checkbox"
                 checked={form.allowed_emojis}
-                onChange={handleChange}
+                onCheckedChange={(checked) => setForm(f => ({ ...f, allowed_emojis: checked === true }))}
                 disabled={isPending}
-                className="h-4 w-4 rounded border"
               />
-              <label htmlFor="allowed_emojis" className="text-sm">
+              {form.allowed_emojis && <input type="hidden" name="allowed_emojis" value="on" />}
+              <Label htmlFor="allowed_emojis">
                 Permitir emojis en el copy
-              </label>
+              </Label>
             </div>
           </div>
           <div className="space-y-2">
-            <label htmlFor="brand_personality" className="text-sm font-medium">
+            <Label htmlFor="brand_personality">
               <LabelWithTooltip
                 label="Personalidad de marca"
                 tooltip="Palabras clave que describen la personalidad de tu marca. Usa varias, como si fueran etiquetas."
               />
-            </label>
+            </Label>
             <div className="space-y-2">
               <Input
                 id="brand_personality"
@@ -475,32 +506,34 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               {brandPersonalityTags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {brandPersonalityTags.map((tag) => (
-                    <span
+                    <Badge
                       key={tag}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                      variant="secondary"
+                      className="gap-1 pr-1 bg-primary/10 text-primary dark:text-zinc-100 hover:bg-primary/20"
                     >
                       {tag}
-                      <button
+                      <Button
                         type="button"
+                        variant={"ghost"}
                         onClick={() => removeTagFromField("brand_personality", tag)}
                         disabled={isPending}
-                        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-foreground/10 text-[10px] text-muted-foreground hover:bg-foreground/20"
+                        className="h-4 w-4 p-0 rounded-full hover:bg-foreground/10 dark:hover:bg-zinc-800"
                       >
                         ×
-                      </button>
-                    </span>
+                      </Button>
+                    </Badge>
                   ))}
                 </div>
               )}
             </div>
           </div>
           <div className="space-y-2">
-            <label htmlFor="forbidden_words" className="text-sm font-medium">
+            <Label htmlFor="forbidden_words">
               <LabelWithTooltip
                 label="Palabras prohibidas"
                 tooltip="Palabras, expresiones o conceptos que no quieres que la IA utilice nunca."
               />
-            </label>
+            </Label>
             <div className="space-y-2">
               <Input
                 id="forbidden_words"
@@ -526,20 +559,22 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               {forbiddenWordsTags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {forbiddenWordsTags.map((tag) => (
-                    <span
+                    <Badge
                       key={tag}
-                      className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive"
+                      variant="destructive"
+                      className="gap-1 pr-1 bg-destructive/10 text-destructive dark:text-red-200 hover:bg-destructive/20 border-destructive/20"
                     >
                       {tag}
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onClick={() => removeTagFromField("forbidden_words", tag)}
                         disabled={isPending}
-                        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-destructive/20 text-[10px] hover:bg-destructive/30"
+                        className="h-4 w-4 p-0 rounded-full hover:bg-destructive/30 text-destructive dark:text-red-400"
                       >
                         ×
-                      </button>
-                    </span>
+                      </Button>
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -554,77 +589,142 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <label htmlFor="target_age_range_min" className="text-sm font-medium">
+              <Label htmlFor="target_age_range">
                 <LabelWithTooltip
                   label="Rango de edad"
                   tooltip="Define una edad mínima y máxima aproximada de tu público objetivo."
                 />
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="target_age_range_min"
-                  type="number"
-                  min={0}
-                  value={ageMin}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setAgeMin(value)
-                    const next =
-                      value && ageMax
-                        ? `${value}-${ageMax}`
-                        : value || ageMax
-                          ? `${value || ageMax}`
-                          : ""
-                    setForm((f) => ({ ...f, target_age_range: next }))
-                  }}
-                  disabled={isPending}
-                  placeholder="Ej. 25"
-                />
-                <span className="text-xs text-muted-foreground">a</span>
-                <Input
-                  id="target_age_range_max"
-                  type="number"
-                  min={0}
-                  value={ageMax}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setAgeMax(value)
-                    const next =
-                      ageMin && value
-                        ? `${ageMin}-${value}`
-                        : ageMin || value
-                          ? `${ageMin || value}`
-                          : ""
-                    setForm((f) => ({ ...f, target_age_range: next }))
-                  }}
-                  disabled={isPending}
-                  placeholder="Ej. 40"
-                />
+              </Label>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="all_ages"
+                    name="target_audience_all_ages"
+                    checked={isAllAges}
+                    onCheckedChange={(checked) => toggleAllAges(checked === true)}
+                    disabled={isPending}
+                  />
+                  <Label htmlFor="all_ages" className="font-normal cursor-pointer">
+                    Todas las edades
+                  </Label>
+                </div>
+
+                {!isAllAges && (
+                  <div className="space-y-3">
+                    <div className="flex items-end gap-2">
+                      <div className="grid w-full gap-2">
+                        <Label htmlFor="age_min" className="text-xs">Mínima</Label>
+                        <Input
+                          id="age_min"
+                          type="number"
+                          value={helperAgeMin}
+                          onChange={(e) => setHelperAgeMin(e.target.value)}
+                          placeholder="Ej. 18"
+                          min={0}
+                          className="w-full"
+                          disabled={isPending}
+                        />
+                      </div>
+                      <span className="pb-2 text-muted-foreground">-</span>
+                      <div className="grid w-full gap-2">
+                        <Label htmlFor="age_max" className="text-xs">Máxima</Label>
+                        <Input
+                          id="age_max"
+                          type="number"
+                          value={helperAgeMax}
+                          onChange={(e) => setHelperAgeMax(e.target.value)}
+                          placeholder="Ej. 65"
+                          min={0}
+                          className="w-full"
+                          disabled={isPending}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          if (!helperAgeMin || !helperAgeMax) return
+                          const range = `${helperAgeMin}-${helperAgeMax}`
+                          addAgeRange(range)
+                          setHelperAgeMin("")
+                          setHelperAgeMax("")
+                        }}
+                        disabled={!helperAgeMin || !helperAgeMax || isPending}
+                        className="mb-[1px]"
+                      >
+                        Agregar
+                      </Button>
+                    </div>
+                    <p className="text-[0.8rem] text-muted-foreground">
+                      Ingresa la edad mínima y máxima para crear un rango personalizado.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  {isAllAges ? (
+                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
+                      Todas las edades
+                    </Badge>
+                  ) : (
+                    ageTags.map(tag => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="gap-1 pr-1 bg-primary/10 text-primary cursor-pointer hover:bg-primary/20"
+                        onClick={() => {
+                          const [min, max] = tag.split("-")
+                          if (min && max) {
+                            setHelperAgeMin(min)
+                            setHelperAgeMax(max)
+                          }
+                          removeAgeRange(tag)
+                        }}
+                      >
+                        {tag}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeAgeRange(tag)
+                          }}
+                          disabled={isPending}
+                          className="h-4 w-4 p-0 rounded-full hover:bg-foreground/10"
+                        >
+                          ×
+                        </Button>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+
+                <input type="hidden" name="target_audience_age_ranges" value={form.target_audience_age_ranges} />
               </div>
-              <input type="hidden" name="target_age_range" value={form.target_age_range} />
             </div>
             <div className="space-y-2">
-              <label htmlFor="target_gender" className="text-sm font-medium">
+              <Label htmlFor="target_gender">
                 <LabelWithTooltip
                   label="Género principal"
                   tooltip="Si tu comunicación está más dirigida a un género específico o es mixta."
                 />
-              </label>
-              <select
-                id="target_gender"
-                name="target_gender"
+              </Label>
+              <Select
                 value={form.target_gender}
-                onChange={handleChange}
+                name="target_gender"
+                onValueChange={(val) => setForm(f => ({ ...f, target_gender: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona género
-                </option>
-                <option value="mixto">Mixto</option>
-                <option value="hombre">Hombre</option>
-                <option value="mujer">Mujer</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mixto">Mixto</SelectItem>
+                  <SelectItem value="hombre">Hombre</SelectItem>
+                  <SelectItem value="mujer">Mujer</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
           </div>
@@ -635,12 +735,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="main_pain_point" className="text-sm font-medium">
+              <Label htmlFor="main_pain_point">
                 <LabelWithTooltip
                   label="Dolor principal"
                   tooltip="Problema o frustración más importante que resuelves para tu cliente ideal."
                 />
-              </label>
+              </Label>
               <Textarea
                 id="main_pain_point"
                 name="main_pain_point"
@@ -651,12 +751,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="main_desire" className="text-sm font-medium">
+              <Label htmlFor="main_desire">
                 <LabelWithTooltip
                   label="Deseo principal"
                   tooltip="Resultado positivo que tu cliente quiere conseguir gracias a tu oferta."
                 />
-              </label>
+              </Label>
               <Textarea
                 id="main_desire"
                 name="main_desire"
@@ -669,12 +769,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="main_objection" className="text-sm font-medium">
+              <Label htmlFor="main_objection">
                 <LabelWithTooltip
                   label="Objeción principal"
                   tooltip="Razón más común por la que un potencial cliente duda o no compra."
                 />
-              </label>
+              </Label>
               <Textarea
                 id="main_objection"
                 name="main_objection"
@@ -685,12 +785,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="buying_motivation" className="text-sm font-medium">
+              <Label htmlFor="buying_motivation">
                 <LabelWithTooltip
                   label="Motivación de compra"
                   tooltip="Disparadores y motivaciones que impulsan al cliente a tomar la decisión de compra."
                 />
-              </label>
+              </Label>
               <Textarea
                 id="buying_motivation"
                 name="buying_motivation"
@@ -709,12 +809,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
             Oferta base
           </h2>
           <div className="space-y-2">
-            <label htmlFor="main_products" className="text-sm font-medium">
+            <Label htmlFor="main_products">
               <LabelWithTooltip
                 label="Productos/servicios principales"
                 tooltip="Describe tus productos o servicios clave y su importancia relativa."
               />
-            </label>
+            </Label>
             <Textarea
               id="main_products"
               name="main_products"
@@ -726,49 +826,49 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="average_ticket" className="text-sm font-medium">
+              <Label htmlFor="average_ticket">
                 <LabelWithTooltip
                   label="Ticket promedio"
                   tooltip="Valor promedio que suele pagar un cliente por compra."
                 />
-              </label>
-              <select
-                id="average_ticket"
-                name="average_ticket"
+              </Label>
+              <Select
                 value={form.average_ticket}
-                onChange={handleChange}
+                name="average_ticket"
+                onValueChange={(val) => setForm(f => ({ ...f, average_ticket: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona ticket
-                </option>
-                <option value="bajo">Bajo</option>
-                <option value="medio">Medio</option>
-                <option value="alto">Alto</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona ticket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bajo">Bajo</SelectItem>
+                  <SelectItem value="medio">Medio</SelectItem>
+                  <SelectItem value="alto">Alto</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="purchase_frequency" className="text-sm font-medium">
+              <Label htmlFor="purchase_frequency">
                 <LabelWithTooltip
                   label="Frecuencia de compra"
                   tooltip="Cada cuánto suelen comprarte los clientes (ocasional, recurrente, etc.)."
                 />
-              </label>
-              <select
-                id="purchase_frequency"
-                name="purchase_frequency"
+              </Label>
+              <Select
                 value={form.purchase_frequency}
-                onChange={handleChange}
+                name="purchase_frequency"
+                onValueChange={(val) => setForm(f => ({ ...f, purchase_frequency: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona frecuencia
-                </option>
-                <option value="ocasional">Ocasional</option>
-                <option value="recurrente">Recurrente</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona frecuencia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ocasional">Ocasional</SelectItem>
+                  <SelectItem value="recurrente">Recurrente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </section>
@@ -785,26 +885,46 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
             </p>
           </div>
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {SOCIAL_CHANNEL_OPTIONS.map((channel) => {
                 const isActive = activeChannelsTags.includes(channel)
                 return (
-                  <label
+                  <div
                     key={channel}
-                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors cursor-pointer ${isActive
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-muted-foreground hover:bg-muted"
-                      }`}
+                    onClick={() => toggleChannel(channel)}
+                    className={`
+                      relative group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer select-none
+                      ${isActive
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-muted/40 hover:border-primary/50 hover:bg-muted/30"
+                      }
+                    `}
                   >
-                    <input
-                      type="checkbox"
-                      className="h-3.5 w-3.5 rounded border"
-                      checked={isActive}
-                      onChange={() => toggleChannel(channel)}
-                      disabled={isPending}
-                    />
-                    <span className="capitalize">{channel}</span>
-                  </label>
+                    <div className={`
+                      p-2 rounded-full transition-colors
+                      ${isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:text-primary"}
+                    `}>
+                      {channel === 'instagram' && <Instagram size={24} />}
+                      {channel === 'facebook' && <Facebook size={24} />}
+                      {channel === 'tiktok' && <Smartphone size={24} />}
+                    </div>
+
+                    <div className="text-center">
+                      <p className={`font-semibold capitalize ${isActive ? "text-primary" : "text-foreground"}`}>
+                        {channel}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mt-0.5">
+                        {isActive ? "Activo" : "Inactivo"}
+                      </p>
+                    </div>
+
+                    {isActive && (
+                      <div className="absolute top-3 right-3 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
@@ -820,37 +940,37 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="visual_style" className="text-sm font-medium">
+              <Label htmlFor="visual_style">
                 <LabelWithTooltip
                   label="Estilo visual"
                   tooltip="Estilo general de la marca en piezas gráficas: minimalista, moderno, elegante, retro, etc."
                 />
-              </label>
-              <select
-                id="visual_style"
-                name="visual_style"
+              </Label>
+              <Select
                 value={form.visual_style}
-                onChange={handleChange}
+                name="visual_style"
+                onValueChange={(val) => setForm(f => ({ ...f, visual_style: val as any }))}
                 disabled={isPending}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               >
-                <option value="">
-                  Selecciona estilo
-                </option>
-                <option value="minimalista">Minimalista</option>
-                <option value="moderno">Moderno</option>
-                <option value="elegante">Elegante</option>
-                <option value="colorido">Colorido</option>
-                <option value="oscuro">Oscuro</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona estilo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimalista">Minimalista</SelectItem>
+                  <SelectItem value="moderno">Moderno</SelectItem>
+                  <SelectItem value="elegante">Elegante</SelectItem>
+                  <SelectItem value="colorido">Colorido</SelectItem>
+                  <SelectItem value="oscuro">Oscuro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="brand_colors" className="text-sm font-medium">
+              <Label htmlFor="brand_colors">
                 <LabelWithTooltip
                   label="Colores de marca"
                   tooltip="Agrega uno o varios colores principales de la marca en formato HEX (por ejemplo #FF0000)."
                 />
-              </label>
+              </Label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -865,7 +985,7 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
                     aria-label="Seleccionar color"
                     disabled={isPending}
                   />
-                  <input
+                  <Input
                     id="brand_colors"
                     name="brand_colors"
                     ref={brandColorTextRef}
@@ -877,40 +997,42 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
                         upsertBrandColor(value)
                       }
                     }}
-                    className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                    className="flex-1"
                     placeholder="Escribe un color HEX y presiona Enter (ej. #FF0000)"
                     disabled={isPending}
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={addBrandColorFromPicker}
                     disabled={isPending}
-                    className="inline-flex h-9 items-center rounded-md border bg-background px-3 text-sm font-medium hover:bg-muted"
                   >
                     {editingBrandColor ? "Actualizar" : "Agregar"}
-                  </button>
+                  </Button>
                 </div>
                 <input type="hidden" name="brand_colors_hidden" value={form.brand_colors} />
                 {editingBrandColor && (
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span>Editando: {editingBrandColor}</span>
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
                       onClick={cancelEditBrandColor}
-                      className="underline underline-offset-2 hover:text-foreground"
+                      className="h-auto p-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                     >
                       Cancelar
-                    </button>
+                    </Button>
                   </div>
                 )}
                 {brandColorTags.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {brandColorTags.map((color) => (
-                      <span
+                      <Badge
                         key={color}
+                        variant="secondary"
                         onClick={() => beginEditBrandColor(color)}
-                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors ${editingBrandColor === color
-                          ? "bg-primary/10 text-primary border border-primary/30"
+                        className={`cursor-pointer gap-2 pr-1 transition-colors ${editingBrandColor === color
+                          ? "bg-primary/10 text-primary border-primary/30"
                           : "bg-muted text-muted-foreground hover:bg-muted/70"
                           }`}
                       >
@@ -919,17 +1041,18 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
                           style={{ backgroundColor: color }}
                         />
                         {color}
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
                           onClick={(e) => {
                             e.stopPropagation()
                             removeTagFromField("brand_colors", color)
                           }}
-                          className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-foreground/10 text-[10px] hover:bg-foreground/20"
+                          className="h-4 w-4 p-0 rounded-full hover:bg-foreground/10"
                         >
                           ×
-                        </button>
-                      </span>
+                        </Button>
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -940,13 +1063,12 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
         </section>
 
         <div className="pt-2 flex justify-end">
-          <button
+          <Button
             type="submit"
             disabled={isPending}
-            className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? "Guardando..." : "Guardar configuración base"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -142,12 +142,13 @@ model BusinessBaseConfig {
   allowedEmojis      Boolean             @default(true)
   forbiddenWords     String? // CSV de tags
 
-  targetAgeRange   String?
-  targetGender     TargetGender?
-  mainPainPoint    String?
-  mainDesire       String?
-  mainObjection    String?
-  buyingMotivation String?
+  targetAudienceAllAges   Boolean       @default(false)
+  targetAudienceAgeRanges String[] // Array of ranges e.g. ["18-24", "30-45"]
+  targetGender            TargetGender?
+  mainPainPoint           String?
+  mainDesire              String?
+  mainObjection           String?
+  buyingMotivation        String?
 
   mainProducts      String?
   averageTicket     AverageTicket?

@@ -141,7 +141,9 @@ const PILLAR_CONFIG: Record<ContentPillar, string> = {
 export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, initialData }: PlanningOrderFormProps) {
     const { toast } = useToast()
     const [isPending, startTransition] = React.useTransition()
-    const [showExceptions, setShowExceptions] = React.useState(false)
+    const [showExceptions, setShowExceptions] = React.useState(
+        !!initialData?.excludedDates?.length
+    )
     const [lastSaved, setLastSaved] = React.useState<Date | null>(null)
     const [isSaving, setIsSaving] = React.useState(false)
     const [hasPendingAutosave, setHasPendingAutosave] = React.useState(false)
@@ -257,6 +259,10 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                 if (parsed.dateRange?.to) parsed.dateRange.to = new Date(parsed.dateRange.to);
                 if (parsed.excludedDates) parsed.excludedDates = parsed.excludedDates.map((d: string) => new Date(d));
 
+                if (parsed.excludedDates?.length > 0) {
+                    setShowExceptions(true);
+                }
+
                 form.reset({ ...form.getValues(), ...parsed });
             }
         } catch (e) {
@@ -370,18 +376,16 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
             <div className="flex justify-between items-center mb-3 mt-[-20px]">
                 <div />
                 <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                    {orderId && (
-                        <Button
-                            type="button"
-                            variant="default"
-                            size="sm"
-                            className="h-8"
-                            onClick={onManualSave}
-                            disabled={isSaving || isPending || !form.formState.isDirty}
-                        >
-                            Guardar
-                        </Button>
-                    )}
+                    <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="h-8"
+                        onClick={form.handleSubmit(onSubmit)}
+                        disabled={isSaving || isPending || !form.formState.isDirty}
+                    >
+                        {orderId ? "Guardar" : "Crear"}
+                    </Button>
                     <Button
                         type="button"
                         variant="outline"
@@ -484,7 +488,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                             <FormLabel>Objetivo principal *</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="cursor-pointer">
                                                         <SelectValue placeholder="Selecciona un objetivo" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -601,6 +605,17 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                                         }
                                                         locale={es}
                                                     />
+                                                    {field.value && field.value.length > 0 && (
+                                                        <div className="mt-4 pt-4 border-t">
+                                                            <div className="text-sm font-medium mb-2">Días excluidos seleccionados ({field.value.length}):</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {field.value
+                                                                    .sort((a: Date, b: Date) => a.getTime() - b.getTime())
+                                                                    .map((date: Date) => format(date, "d 'de' MMMM", { locale: es }))
+                                                                    .join(", ")}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <FormMessage />
                                             </FormItem>
@@ -685,7 +700,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                             <FormLabel>Estrategia narrativa</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="cursor-pointer">
                                                         <SelectValue placeholder="Selecciona estrategia" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -718,7 +733,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                             <FormLabel>Tono emocional</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="cursor-pointer">
                                                         <SelectValue placeholder="Selecciona tono" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -780,6 +795,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                                     <Switch
                                                         checked={field.value}
                                                         onCheckedChange={field.onChange}
+                                                        className="cursor-pointer"
                                                     />
                                                 </FormControl>
                                             </FormItem>
@@ -801,6 +817,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                                     <Switch
                                                         checked={field.value}
                                                         onCheckedChange={field.onChange}
+                                                        className="cursor-pointer"
                                                     />
                                                 </FormControl>
                                             </FormItem>
@@ -825,7 +842,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                                     "flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors",
                                                     field.value?.includes(key as ContentPillar)
                                                         ? "border-primary bg-primary/10"
-                                                        : "border-gray-200 hover:bg-gray-50"
+                                                        : "border-input hover:bg-accent hover:text-accent-foreground"
                                                 )}
                                             >
                                                 <Checkbox
@@ -844,6 +861,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
 
                                                         field.onChange(current.filter((v) => v !== (key as ContentPillar)))
                                                     }}
+                                                    className="cursor-pointer"
                                                 />
                                                 <Label htmlFor={`pillar-${key}`} className="cursor-pointer text-sm">
                                                     {label}
@@ -921,7 +939,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                                                     onValueChange={handleStyleChange}
                                                 >
                                                     <FormControl>
-                                                        <SelectTrigger>
+                                                        <SelectTrigger className="cursor-pointer">
                                                             <SelectValue placeholder="Selecciona un estilo visual" />
                                                         </SelectTrigger>
                                                     </FormControl>
@@ -1146,26 +1164,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                     </div>
 
                     {/* BOTÓN SUBMIT */}
-                    <div className="flex justify-end pt-6 border-t">
-                        <Button
-                            type="submit"
-                            disabled={isPending}
-                            size="lg"
-                            className="gap-2"
-                        >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Generando planificación...
-                                </>
-                            ) : (
-                                <>
-                                    <Sparkles className="h-4 w-4" />
-                                    Generar Plan de Ideas Base con IA
-                                </>
-                            )}
-                        </Button>
-                    </div>
+
                 </form>
             </Form>
         </div>

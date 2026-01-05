@@ -49,7 +49,7 @@ export default async function CrearPlanificacionPage() {
                         tone: baseConfig?.brandTone ?? "Profesional",
                         channels: activeChannels,
                         buyerPersona: {
-                            ageRange: baseConfig?.targetAgeRange ?? "No definido",
+                            ageRange: baseConfig?.targetAudienceAllAges ? "Todas las edades" : (baseConfig?.targetAudienceAgeRanges?.join(", ") || "No definido"),
                             pains: baseConfig?.mainPainPoint ? [baseConfig.mainPainPoint] : [],
                             desires: baseConfig?.mainDesire ? [baseConfig.mainDesire] : []
                         }

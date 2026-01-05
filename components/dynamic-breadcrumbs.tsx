@@ -17,6 +17,7 @@ const TITLE_MAP: Record<string, string> = {
   "negocio": "Negocio",
   "configuracion": "Configuración",
   "onboarding": "Onboarding",
+  "planificacion": "Planificación",
 }
 
 export function DynamicBreadcrumbs() {
@@ -27,8 +28,14 @@ export function DynamicBreadcrumbs() {
     const href = "/" + segments.slice(0, idx + 1).join("/")
     const title = TITLE_MAP[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1)
     const isLast = idx === segments.length - 1
-    return { href, title, isLast }
-  })
+
+    // Check if segment is a UUID or "crear" to hide it (as per user request to avoid clutter/confusion)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg)
+    const isCreate = seg.toLowerCase() === "crear"
+    const shouldHide = isUuid || isCreate
+
+    return { href, title, isLast, shouldHide }
+  }).filter(item => !item.shouldHide)
 
   // If at root ("/"), show single Dashboard item
   if (segments.length === 0) {
@@ -51,7 +58,7 @@ export function DynamicBreadcrumbs() {
             <Link href="/">Dashboard</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
-        {items.map((item, i) => (
+        {items.map((item) => (
           <React.Fragment key={item.href}>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
