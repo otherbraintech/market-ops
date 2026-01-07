@@ -373,9 +373,9 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
     return (
         <div className="space-y-8">
 
-            <div className="flex justify-between items-center mb-3 mt-[-20px]">
-                <div />
-                <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+            <div className="flex justify-end mb-3">
+                <div className="w-full sm:w-auto rounded-lg border bg-background/60 px-3 py-2 shadow-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                     <Button
                         type="button"
                         variant="default"
@@ -396,7 +396,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                     >
                         Deshacer
                     </Button>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2 pl-1">
+                    <div className="text-xs text-muted-foreground flex items-center gap-2 sm:border-l sm:pl-3">
                         {isSaving ? (
                             <>
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -409,6 +409,7 @@ export function EnhancedPlanningOrderForm({ products, businessConfig, orderId, i
                         ) : form.formState.isDirty ? (
                             <span>Cambios sin guardar</span>
                         ) : null}
+                    </div>
                     </div>
                 </div>
             </div>

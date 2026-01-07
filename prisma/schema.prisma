@@ -223,6 +223,7 @@ enum PlanningStatus {
   IDEAS_APPROVED // Planificación aprobada
   COMPLETED
   CANCELLED
+  DELETED
 }
 
 enum ChannelFormat {

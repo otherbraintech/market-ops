@@ -194,9 +194,16 @@ export async function duplicatePlanningOrder(orderId: string) {
 
 export async function deletePlanningOrder(orderId: string) {
     try {
-        await prisma.planningOrder.delete({
-            where: { id: orderId }
+        console.log("Attempting to delete order:", orderId)
+        console.log("PlanningStatus enum:", PlanningStatus)
+        console.log("Setting status to:", PlanningStatus.DELETED)
+
+        const result = await prisma.planningOrder.update({
+            where: { id: orderId },
+            data: { status: PlanningStatus.DELETED }
         })
+        console.log("Update result:", result)
+        
         revalidatePath("/planificacion")
         return { success: true }
     } catch (error) {

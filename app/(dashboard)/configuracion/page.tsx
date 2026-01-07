@@ -1,10 +1,13 @@
+// forcing recompile
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
-import { BaseConfigForm, type BaseConfigFormState } from "./BaseConfigForm"
+import { BaseConfigFormWrapper } from "./BaseConfigFormWrapper"
+import { type BaseConfigFormState } from "./BaseConfigForm"
 
 export default async function ConfiguracionBasePage() {
   const cookieStore = await cookies()
   const businessId = cookieStore.get("activeBusinessId")?.value
+
 
   if (!businessId) {
     const empty: BaseConfigFormState = {
@@ -34,7 +37,7 @@ export default async function ConfiguracionBasePage() {
       brand_colors: "",
 
     }
-    return <BaseConfigForm key="empty" initialForm={empty} />
+    return <BaseConfigFormWrapper key="empty" initialForm={empty} />
   }
 
   const config = await prisma.businessBaseConfig.findUnique({
@@ -71,5 +74,5 @@ export default async function ConfiguracionBasePage() {
 
   }
 
-  return <BaseConfigForm key={businessId} initialForm={initial} />
+  return <BaseConfigFormWrapper key={businessId} initialForm={initial} />
 }

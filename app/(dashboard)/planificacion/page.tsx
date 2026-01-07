@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { PlanningStatus } from "@prisma/client"
 import { Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,10 @@ export default async function PlanningListPage() {
     }
 
     const orders = await prisma.planningOrder.findMany({
-        where: { businessId },
+        where: {
+            businessId,
+            status: { not: PlanningStatus.DELETED }
+        },
         orderBy: { createdAt: "desc" },
     })
 

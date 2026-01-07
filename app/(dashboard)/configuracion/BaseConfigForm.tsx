@@ -311,7 +311,7 @@ export function BaseConfigForm({ initialForm }: { initialForm: BaseConfigFormSta
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Configuración base</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
           <p className="text-sm text-muted-foreground">
             Define parámetros estándar de marca para la planificación de contenido.
           </p>

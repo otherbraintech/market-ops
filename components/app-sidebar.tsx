@@ -36,14 +36,14 @@ const data = {
             isActive: true,
         },
         {
-            title: "Negocio",
-            url: "/negocio",
+            title: "Negocios",
+            url: "/negocios",
             icon: Store,
             // no subitems -> simple link, no accordion
         },
 
         {
-            title: "Configuración base",
+            title: "Configuración",
             url: "/configuracion/base",
             icon: Settings2,
         },

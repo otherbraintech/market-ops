@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 import { Calendar, Eye, FileText, Target, MoreVertical, Clock, CheckCircle2, XCircle, AlertCircle, Pencil } from "lucide-react"
-import { PlanningOrder, PlanningObjective, ContentStrategy } from "@prisma/client"
+import { PlanningOrder, PlanningObjective, ContentStrategy, PlanningStatus } from "@prisma/client"
 
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -37,18 +37,20 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { PlanningCard } from "./PlanningCard"
 
 interface PlanningListProps {
     orders: any[] // Using any for now to avoid strict Prisma type issues on client, but ideally should be typed
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+export const STATUS_CONFIG: Record<PlanningStatus, { label: string; color: string; icon: any }> = {
     DRAFT: { label: "Borrador", color: "bg-gray-100 text-gray-700", icon: Clock },
     ORDER_CREATED: { label: "Orden Creada", color: "bg-blue-100 text-blue-700", icon: CheckCircle2 },
     IDEAS_GENERATED: { label: "Ideas Listas", color: "bg-purple-100 text-purple-700", icon: SparklesIcon },
     IDEAS_APPROVED: { label: "Aprobado", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
     COMPLETED: { label: "Completado", color: "bg-slate-100 text-slate-700", icon: CheckCircle2 },
     CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-700", icon: XCircle },
+    DELETED: { label: "Eliminado", color: "bg-red-100 text-red-700", icon: Trash },
 }
 
 function SparklesIcon(props: any) {
@@ -71,9 +73,14 @@ function SparklesIcon(props: any) {
 }
 
 export function PlanningList({ orders }: PlanningListProps) {
+    const [localOrders, setLocalOrders] = useState<any[]>(orders)
     const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
     const { toast } = useToast()
     const [isPending, startTransition] = useState<string | null>(null)
+
+    useEffect(() => {
+        setLocalOrders(orders)
+    }, [orders])
 
     const handleDuplicate = async (id: string, name: string) => {
         startTransition(id)
@@ -91,6 +98,7 @@ export function PlanningList({ orders }: PlanningListProps) {
         startTransition(id)
         const result = await deletePlanningOrder(id)
         if (result.success) {
+            setLocalOrders((prev) => prev.filter((order: any) => order.id !== id))
             toast({ title: "Plan eliminado", description: "El plan ha sido eliminado correctamente" })
         } else {
             toast({ title: "Error", description: "No se pudo eliminar el plan", variant: "destructive" })
@@ -101,91 +109,16 @@ export function PlanningList({ orders }: PlanningListProps) {
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {orders.map((order) => {
-                    const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.ORDER_CREATED
-                    const StatusIcon = status.icon
-
-                    return (
-                        <Card key={order.id} className="group hover:shadow-md transition-shadow border-muted/60">
-                            <CardHeader className="pb-3">
-                                <div className="flex justify-between items-start mb-2">
-                                    <Badge variant="outline" className={`${status.color} border-0`}>
-                                        <StatusIcon className="w-3 h-3 mr-1" />
-                                        {status.label}
-                                    </Badge>
-
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2" disabled={isPending === order.id}>
-                                                {isPending === order.id ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <MoreVertical className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleDuplicate(order.id, order.name)}>
-                                                <Copy className="mr-2 h-4 w-4" /> Duplicar
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-red-600 focus:text-red-600"
-                                                onClick={() => handleDelete(order.id)}
-                                            >
-                                                <Trash className="mr-2 h-4 w-4" /> Eliminar
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                                <CardTitle className="text-lg leading-tight line-clamp-2">
-                                    {order.name}
-                                </CardTitle>
-                                <CardDescription className="flex items-center mt-1">
-                                    <Calendar className="w-3 h-3 mr-1" />
-                                    {format(new Date(order.startDate), "d MMM", { locale: es })} - {format(new Date(order.endDate), "d MMM yyyy", { locale: es })}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pb-3">
-                                <div className="space-y-2 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-2">
-                                        <Target className="w-4 h-4 text-primary/70" />
-                                        <span className="capitalize">{order.objective.replace(/_/g, " ").toLowerCase()}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-primary/70" />
-                                        <span className="capitalize">
-                                            {order.contentStrategy
-                                                ? order.contentStrategy.replace(/_/g, " ").toLowerCase()
-                                                : "Estrategia estándar"}
-                                        </span>
-                                    </div>
-                                </div>
-                            </CardContent>
-                            <CardFooter className="pt-3 border-t bg-muted/5 flex gap-2">
-                                <Button
-                                    variant="ghost"
-                                    className="flex-1 hover:bg-white group-hover:border-primary/20 hover:border"
-                                    onClick={() => setSelectedOrder(order)}
-                                >
-                                    Ver
-                                    <Eye className="w-4 h-4 ml-2 text-muted-foreground" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="flex-1 hover:bg-white group-hover:border-primary/20 hover:border"
-                                    asChild
-                                >
-                                    <Link href={`/planificacion/${order.id}/editar`}>
-                                        Editar
-                                        <Pencil className="w-4 h-4 ml-2 text-muted-foreground" />
-                                    </Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    )
-                })}
+                {localOrders.map((order) => (
+                    <PlanningCard
+                        key={order.id}
+                        order={order}
+                        isPending={isPending}
+                        onDuplicate={handleDuplicate}
+                        onDelete={handleDelete}
+                        onView={setSelectedOrder}
+                    />
+                ))}
             </div>
 
             <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
